@@ -76,31 +76,7 @@ async def top_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(msg)
     db.close()
 
-# --- 2. ADMIN SYSTEM ---
-
-# Hàm xử lý logic lệnh (để tái sử dụng)
-async def view_review_logic(update, context):
-    db = SessionLocal()
-    reviews = db.query(Review).all()
-    if not reviews:
-        await update.message.reply_text("Kho review đang TRỐNG.")
-    else:
-        msg = "📝 <b>KHO REVIEW HIỆN TẠI:</b>\n\n"
-        for r in reviews:
-            msg += f"- {r.content}\n"
-        if len(msg) > 4000: await update.message.reply_text(msg[:4000] + "...", parse_mode="HTML")
-        else: await update.message.reply_text(msg, parse_mode="HTML")
-    db.close()
-
-async def reset_review_logic(update, context):
-    db = SessionLocal()
-    try:
-        num = db.query(Review).delete()
-        db.commit()
-        await update.message.reply_text(f"🗑 Đã xóa sạch {num} câu review rác.\nGiờ hãy chat nội dung mới để nạp lại.")
-    except: await update.message.reply_text("Lỗi xóa DB.")
-    finally: db.close()
-
+# Hàm nạp review (Tách riêng để gọi lại)
 async def handle_add_review(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
     if not text: return
@@ -112,60 +88,63 @@ async def handle_add_review(update: Update, context: ContextTypes.DEFAULT_TYPE):
             db.add(Review(content=content))
             count += 1
         db.commit()
-        await update.message.reply_text(f"✅ Đã thêm {count} câu review vào kho.")
+        await update.message.reply_text(f"✅ Đã thêm {count} câu review.")
     except: pass
     db.close()
 
-# MENU ADMIN (ĐÃ THÊM NÚT REVIEW)
 async def admin_dashboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if str(update.effective_user.id) != ADMIN_ID: return
     keyboard = [
         ["📋 Danh Sách NV", "📢 Gửi Thông Báo"],
-        ["📝 Xem Kho Review", "🗑 Xóa Hết Review"],  # <--- ĐÃ THÊM DÒNG NÀY
-        ["🔄 Reset Tiền NV", "❌ Thoát Admin"]
+        ["📝 Xem Kho Review", "🗑 Xóa Hết Review"],
+        ["🔄 Reset Toàn Bộ", "❌ Thoát Admin"]
     ]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
     await update.message.reply_text("🔓 <b>MENU ADMIN</b>", reply_markup=reply_markup, parse_mode="HTML")
 
-# Xử lý bấm nút
+# --- HÀM XỬ LÝ TEXT (SỬA LỖI Ở ĐÂY) ---
 async def handle_admin_logic(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
     text = update.message.text
     
-    if user_id != ADMIN_ID: 
-        valid_buttons = ["📋 Danh Sách NV", "📢 Gửi Thông Báo", "🔄 Reset Tiền NV", "❌ Thoát Admin", "📝 Xem Kho Review", "🗑 Xóa Hết Review"]
-        if text not in valid_buttons:
-            await handle_add_review(update, context)
+    # Nếu không phải Admin -> Bỏ qua
+    if user_id != ADMIN_ID: return
+
+    # Danh sách các nút bấm
+    admin_buttons = ["📋 Danh Sách NV", "📢 Gửi Thông Báo", "🔄 Reset Toàn Bộ", "❌ Thoát Admin", "📝 Xem Kho Review", "🗑 Xóa Hết Review"]
+
+    # NẾU KHÔNG PHẢI NÚT BẤM -> THÌ LÀ NẠP REVIEW
+    if text not in admin_buttons:
+        await handle_add_review(update, context)
         return
 
+    # Nếu là nút bấm -> Xử lý
     db = SessionLocal()
     
     if text == "📋 Danh Sách NV":
         emps = db.query(Employee).all()
-        if not emps:
-            await update.message.reply_text("Chưa có nhân viên.")
+        if not emps: await update.message.reply_text("Chưa có nhân viên.")
         else:
-            msg = "📋 <b>QUẢN LÝ NHÂN VIÊN</b>\n(Chạm vào lệnh để thao tác)\n\n"
+            msg = "📋 <b>QUẢN LÝ NHÂN VIÊN</b>\n\n"
             for e in emps:
-                msg += (
-                    f"👤 <b>{e.name}</b> ({e.emoji}) | 💰 {e.balance:,.0f}đ\n"
-                    f"👉 /tip_{e.telegram_id} (Thưởng 5k)\n"
-                    f"👉 /fine_{e.telegram_id} (Phạt 5k)\n"
-                    f"👉 /del_{e.telegram_id} (Xóa NV)\n"
-                    f"------------------\n"
-                )
+                msg += (f"👤 <b>{e.name}</b> ({e.emoji}) | {e.balance:,.0f}đ\n👉 /tip_{e.telegram_id} (Thưởng 5k)\n👉 /fine_{e.telegram_id} (Phạt 5k)\n👉 /del_{e.telegram_id} (Xóa)\n---\n")
             await update.message.reply_text(msg, parse_mode="HTML")
 
     elif text == "📝 Xem Kho Review":
-        await view_review_logic(update, context)
+        reviews = db.query(Review).all()
+        if not reviews: await update.message.reply_text("Kho review trống.")
+        else:
+            msg = "📝 <b>REVIEW:</b>\n" + "\n".join([f"- {r.content}" for r in reviews])
+            if len(msg)>4000: msg=msg[:4000]+"..."
+            await update.message.reply_text(msg)
 
     elif text == "🗑 Xóa Hết Review":
-        await reset_review_logic(update, context)
+        db.query(Review).delete(); db.commit()
+        await update.message.reply_text("🗑 Đã xóa sạch kho review.")
 
-    elif text == "🔄 Reset Tiền NV":
-        db.query(Employee).update({Employee.balance: 0})
-        db.commit()
-        await update.message.reply_text("✅ Đã reset toàn bộ ví về 0.")
+    elif text == "🔄 Reset Toàn Bộ":
+        db.query(Employee).update({Employee.balance: 0}); db.commit()
+        await update.message.reply_text("✅ Đã reset ví về 0.")
 
     elif text == "📢 Gửi Thông Báo":
         await update.message.reply_text("⚠️ Gõ: `/thong_bao Nội dung`", parse_mode="Markdown")
@@ -181,22 +160,16 @@ async def quick_action_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     action, target_id = command[1:].split('_') 
     db = SessionLocal()
     emp = db.query(Employee).filter(Employee.telegram_id == target_id).first()
-    if not emp:
-        await update.message.reply_text("❌ Không tìm thấy NV.")
-        db.close(); return
+    if not emp: await update.message.reply_text("❌ Lỗi ID."); db.close(); return
 
     if action == "tip":
-        emp.balance += 5000 
-        await update.message.reply_text(f"✅ Thưởng 5k cho {emp.name}.") 
+        emp.balance += 5000; await update.message.reply_text(f"✅ Thưởng 5k cho {emp.name}.") 
         try: await context.bot.send_message(target_id, "🎁 Sếp thưởng nóng 5k!")
         except: pass
     elif action == "fine":
-        emp.balance -= 5000 
-        await update.message.reply_text(f"✅ Phạt 5k {emp.name}.")
+        emp.balance -= 5000; await update.message.reply_text(f"✅ Phạt 5k {emp.name}.")
     elif action == "del":
-        name = emp.name
-        db.delete(emp)
-        await update.message.reply_text(f"🗑 Đã xóa {name}.")
+        db.delete(emp); await update.message.reply_text(f"🗑 Đã xóa.")
     db.commit(); db.close()
 
 async def broadcast_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -207,16 +180,13 @@ async def broadcast_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     emps = db.query(Employee).all()
     count = 0
     for e in emps:
-        try:
-            await context.bot.send_message(e.telegram_id, f"📢 <b>THÔNG BÁO:</b>\n{msg}", parse_mode="HTML")
-            count += 1
+        try: await context.bot.send_message(e.telegram_id, f"📢 <b>THÔNG BÁO:</b>\n{msg}", parse_mode="HTML"); count += 1
         except: pass
-    await update.message.reply_text(f"✅ Đã gửi {count} người.")
-    db.close()
+    await update.message.reply_text(f"✅ Đã gửi {count} người."); db.close()
 
-# Lệnh Slash commands (Dùng song song với nút bấm)
-async def view_review_command(update, context): await view_review_logic(update, context)
-async def reset_review_command(update, context): await reset_review_logic(update, context)
+async def view_review_command(update, context): await handle_admin_logic(update, context) # Tái sử dụng logic
+async def reset_review_command(update, context): await handle_admin_logic(update, context)
+
 
 # --- 3. SETUP & STARTUP ---
 bot_app = Application.builder().token(TOKEN).build()
@@ -275,6 +245,7 @@ def get_review():
         content = random.choice(backup)
         
     return {"content": content}
+
 
 
 
