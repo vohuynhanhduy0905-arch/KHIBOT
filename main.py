@@ -251,7 +251,7 @@ def home(request: Request, ref: str = None):
         emp = db.query(Employee).filter(Employee.telegram_id == ref).first()
         if emp: emoji = emp.emoji
         db.close()
-    maps_url = "https://maps.app.goo.gl/jFVJC2M4262k8Kkz5"
+    maps_url = "https://www.google.com/maps/place/KH%E1%BB%88+MILKTEA+%26+MACCHIATO/@9.5996676,105.9736035,17z/data=!4m6!3m5!1s0x31a04df7049cd473:0xc085b8838ce2b39!8m2!3d9.5996676!4d105.9736035!16s%2Fg%2F11jx4pcl6m?hl=vi"
     return templates.TemplateResponse("index.html", {"request": request, "maps_url": maps_url, "staff_emoji": emoji})
 
 @app.get("/api/get_review")
@@ -274,6 +274,7 @@ def get_review():
         content = random.choice(backup)
         
     return {"content": content}
+
 
 
 
