@@ -12,7 +12,7 @@ from database import SessionLocal, Employee, ReviewLog, Review, init_db
 from sqlalchemy import desc
 
 # --- CẤU HÌNH ---
-TOKEN = "8490109494:AAFkbCssLKkHMaxYtFiPSKs_ctoqw6mMQ48"
+TOKEN = os.environ.get("TELEGRAM_TOKEN") 
 ADMIN_ID = "1587932557"
 WEB_URL = "https://trasuakhi.onrender.com" 
 
@@ -274,6 +274,7 @@ def get_review():
         content = random.choice(backup)
         
     return {"content": content}
+
 
 
 
