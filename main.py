@@ -10,6 +10,7 @@ from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 from database import SessionLocal, Employee, ReviewLog, Review, init_db
 from sqlalchemy import desc
+from sqlalchemy.sql import func  
 
 # --- CẤU HÌNH ---
 TOKEN = os.environ.get("TELEGRAM_TOKEN") 
@@ -274,6 +275,7 @@ def get_review():
         content = random.choice(backup)
         
     return {"content": content}
+
 
 
 
