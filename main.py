@@ -12,9 +12,9 @@ from database import SessionLocal, Employee, ReviewLog, Review, init_db
 from sqlalchemy import desc
 
 # --- CẤU HÌNH ---
-TOKEN = "7689995852:AAGyc6U2X65C1ojPIeedFepdiOK97vEPtFE"
+TOKEN = "8490109494:AAFkbCssLKkHMaxYtFiPSKs_ctoqw6mMQ48"
 ADMIN_ID = "1587932557"
-WEB_URL = "https://micayitadasoctrang.onrender.com" 
+WEB_URL = "https://trasuakhi.onrender.com" 
 
 # Setup
 init_db()
@@ -263,17 +263,18 @@ def get_review():
     if review:
         content = review.content
     else:
-        # 2. Nếu DB trống thì mới dùng mẫu dự phòng này
-        backup_samples = [
-            "Mì cay nước dùng đậm đà, rất vừa miệng. Nhân viên luôn mỉm cười và chào đón khách rất nồng nhiệt, tạo cảm giác được tôn trọng.",
-            "Nhân viên phục vụ nhanh nhẹn, dễ thương. Mì cay hải sản ở đây là chân ái, mực với tôm tươi rói luôn, ăn đã cái nư.",
-            "Không gian quán thoáng mát, sạch sẽ. Mì cay ITADA quá tuyệt vời, từ món ăn đến con người đều rất dễ thương.",
-            "Đồ ăn ra nhanh, nóng hổi. Quán có chỗ để xe rộng rãi, bảo vệ nhiệt tình, vào quán ăn cảm thấy rất an tâm.",
-            "Giá cả hợp lý, sẽ quay lại ủng hộ, địa điểm ăn uống số 1 trong lòng mình. Mọi thứ hoàn hảo!"
+        # --- SỬA CÁC CÂU MẪU Ở ĐÂY ---
+        backup = [
+            "Trà sữa thơm béo, topping siêu nhiều luôn. Trà sữa ở đây rẻ mà chất lượng cực, full topping 25k quá hời cho sinh viên.",
+            "Quán decor xinh, nước ngon, nhân viên dễ thương. Quán Khỉ gần trường nên mình ghé suốt, trà sữa ô long thơm lắm.",
+            "Trà trái cây tươi mát, uống là nghiền. Menu đa dạng quá trời, uống cả tháng không hết món, nhân viên tư vấn rất kỹ.",
+            "Sẽ quay lại dài dài, 10 điểm chất lượng. Trà trái cây nhiệt đới uống một lần là ghiền luôn, topping trái cây tươi rói.",
+            "Menu đa dạng, giá học sinh, rất ưng ý. Mê nhất trà dâu tằm bên này, thanh mát mà giá lại hạt dẻ."
         ]
-        content = random.choice(backup_samples)
+        content = random.choice(backup)
         
     return {"content": content}
+
 
 
 
