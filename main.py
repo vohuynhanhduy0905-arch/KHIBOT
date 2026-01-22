@@ -251,7 +251,7 @@ def home(request: Request, ref: str = None):
         emp = db.query(Employee).filter(Employee.telegram_id == ref).first()
         if emp: emoji = emp.emoji
         db.close()
-    maps_url = "https://www.google.com/maps/place/Mi+Cay+ITADA+S%C3%93C+TR%C4%82NG/@9.607104,105.9731197,17z/data=!3m1!4b1!4m6!3m5!1s0x31a04d006ab38ec5:0x66fa8e46b9e1fce8!8m2!3d9.607104!4d105.9756946!16s%2Fg%2F11vrx94rp4?hl=vi"
+    maps_url = "https://maps.app.goo.gl/jFVJC2M4262k8Kkz5"
     return templates.TemplateResponse("index.html", {"request": request, "maps_url": maps_url, "staff_emoji": emoji})
 
 @app.get("/api/get_review")
@@ -274,6 +274,7 @@ def get_review():
         content = random.choice(backup)
         
     return {"content": content}
+
 
 
 
