@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Đánh giá Mì Cay Itada</title>
+    
+    <link rel="icon" href="/static/logo.png" type="image/png">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <style>
+        :root {
+            --primary-color: #F37021; 
+            --secondary-color: #006837; 
+            --gradient-btn: linear-gradient(135deg, #F37021 0%, #FF4B2B 100%);
+            --glass-bg: rgba(255, 255, 255, 0.98);
+            --text-dark: #2d3436;
+        }
+        * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
+        body {
+            font-family: 'Montserrat', sans-serif;
+            margin: 0; min-height: 100vh;
+            display: flex; align-items: center; justify-content: center;
+            padding: 20px;
+            background: url('/static/bg.jpg') no-repeat center center fixed; 
+            background-size: cover; overflow: hidden; 
+            user-select: none; -webkit-user-select: none;
+        }
+        body::before {
+            content: ''; position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(8px); 
+            z-index: -1;
+        }
+        .container {
+            background: var(--glass-bg); border-radius: 24px;
+            padding: 50px 30px 20px; width: 100%; max-width: 400px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5); text-align: center;
+            position: relative; animation: zoomIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .brand-logo {
+            width: 110px; height: 110px; border-radius: 50%;
+            object-fit: contain; background: #fff;
+            position: absolute; top: -60px; left: 50%; transform: translateX(-50%);
+            border: 5px solid var(--glass-bg); box-shadow: 0 10px 20px rgba(0,0,0,0.15);
+            padding: 5px; pointer-events: none;
+        }
+        h2 { margin-top: 50px; margin-bottom: 8px; color: var(--text-dark); font-weight: 800; font-size: 24px; }
+        p.subtitle { font-size: 14px; color: #636e72; margin-bottom: 25px; line-height: 1.5; }
+        .review-card {
+            background: #FFF3E0; border-left: 4px solid var(--primary-color); 
+            border-radius: 8px; padding: 20px 25px; margin-bottom: 25px;
+            position: relative; text-align: left;
+            user-select: text; -webkit-user-select: text;
+        }
+        .review-card::before {
+            content: '“'; font-size: 60px; color: var(--primary-color);
+            opacity: 0.2; position: absolute; top: -10px; left: 10px; font-family: serif;
+        }
+        .review-content { font-size: 16px; line-height: 1.6; color: #444; font-style: italic; font-weight: 600; }
+        .btn-main {
+            background: var(--gradient-btn); color: white; border: none;
+            width: 100%; padding: 18px; border-radius: 12px;
+            font-size: 16px; font-weight: 700; cursor: pointer;
+            box-shadow: 0 8px 20px rgba(243, 112, 33, 0.4);
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+            transition: all 0.2s ease;
+        }
+        .btn-main:active { transform: scale(0.96); }
+        .btn-text {
+            background: transparent; border: none; color: #999;
+            margin-top: 15px; font-size: 13px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 5px; width: 100%; padding: 10px;
+        }
+        .footer-info {
+            margin-top: 25px; padding-top: 15px; border-top: 1px solid #eee;
+            font-size: 11px; color: #b2bec3; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;
+        }
+        .loader {
+            width: 30px; height: 30px; border: 3px solid #f3f3f3;
+            border-top: 3px solid var(--primary-color); border-radius: 50%;
+            animation: spin 0.8s linear infinite; margin: 20px auto;
+        }
+        .toast {
+            position: fixed; bottom: 30px; left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: rgba(30, 30, 30, 0.95); color: white;
+            padding: 12px 24px; border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3); opacity: 0; 
+            transition: all 0.4s; z-index: 100;
+            display: flex; align-items: center; gap: 10px; font-weight: 500; font-size: 14px;
+        }
+        .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+        @keyframes zoomIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .social-bar { display: flex; justify-content: center; gap: 15px; margin-top: 25px; margin-bottom: 10px; }
+        .social-btn {
+            width: 40px; height: 40px; border-radius: 50%; display: flex;
+            align-items: center; justify-content: center; text-decoration: none;
+            color: white; font-size: 18px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        .fb-color { background: #1877F2; } .tt-color { background: #000000; } .zl-color { background: #0068FF; }
+        .stars-container { color: #FFD700; font-size: 24px; margin-bottom: 10px; letter-spacing: 5px; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <img src="/static/logo.png" alt="Logo" class="brand-logo" onerror="this.src='https://cdn-icons-png.flaticon.com/512/1046/1046784.png'">
+        
+        <h2>Cảm ơn Quý Khách!</h2>
+        <p class="subtitle">Tặng Itada 5 sao để nhận ưu đãi lần sau nhé ❤️</p>
+
+        <div id="loader" class="loader"></div>
+        
+        <div id="content-area" style="display:none;">
+            <div class="stars-container">★★★★★</div>
+
+            <div class="review-card">
+                <div class="review-content" id="review-text">...</div>
+            </div>
+
+            <button class="btn-main" onclick="copyAndRedirect()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5 2.5 2.5z"/></svg>
+                <span>Sao chép & Mở Maps</span>
+            </button>
+
+            <button class="btn-text" onclick="fetchReview()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                Đổi câu khác
+            </button>
+            
+            <div class="social-bar">
+                <a href="https://www.facebook.com/itadasoctrang9" target="_blank" class="social-btn fb-color"><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" style="margin-top: 4px;"><path d="M9 8h-3v4h3v12h5v-12h3.642l.358-4h-4v-1.667c0-.955.192-1.333 1.115-1.333h2.885v-5h-3.808c-3.596 0-5.192 1.583-5.192 4.615v3.385z"/></svg></a>
+                <a href="https://www.tiktok.com/@itadasoctrang" target="_blank" class="social-btn tt-color"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/></svg></a>
+                <a href="tel:0385454455" class="social-btn zl-color"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M20.01 15.38c-1.23 0-2.42-.2-3.53-.56a.977.977 0 0 0-1.01.24l-1.57 1.97c-2.83-1.44-5.15-3.75-6.59-6.59l1.97-1.57c.26-.26.35-.63.24-1.01a11.17 11.17 0 0 1-.56-3.53c0-.55-.45-1-1-1H4.39c-.55 0-1 .45-1 1 0 9.39 7.61 17 17 17 .55 0 1-.45 1-1v-3.61c0-.55-.45-1-1-1z"/></svg></a>
+            </div>
+            
+            <div class="footer-info">Mì Cay Itada Sóc Trăng<br><span style="font-size: 10px; opacity: 0.7; font-weight: 400;">Thiên đường ẩm thực Hàn Quốc</span></div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast"><span style="font-size: 18px;">✅</span><span>Đã copy! Đang mở Google Maps...</span></div>
+
+    <script>
+        // Lấy link maps và emoji từ server gửi xuống (quan trọng)
+        const MAPS_LINK = "{{ maps_url }}"; 
+        const STAFF_EMOJI = "{{ staff_emoji }}"; // Emoji của nhân viên (nếu có)
+        
+        let currentContent = "";
+
+        function fireConfetti() {
+            var count = 200; var defaults = { origin: { y: 0.7 }, zIndex: 9999 };
+            function fire(particleRatio, opts) { confetti(Object.assign({}, defaults, opts, { particleCount: Math.floor(count * particleRatio) })); }
+            fire(0.25, { spread: 26, startVelocity: 55, }); fire(0.2, { spread: 60, });
+            fire(0.35, { spread: 100, decay: 0.91, scalar: 0.8 }); fire(0.1, { spread: 120, startVelocity: 25, decay: 0.92, scalar: 1.2 });
+            fire(0.1, { spread: 120, startVelocity: 45, });
+        }
+
+        async function fetchReview() {
+            const loader = document.getElementById('loader');
+            const contentArea = document.getElementById('content-area');
+            loader.style.display = 'block'; contentArea.style.display = 'none';
+            try {
+                const response = await fetch('/api/get_review');
+                const data = await response.json();
+                currentContent = data.content;
+                document.getElementById('review-text').innerText = data.content;
+            } catch (error) {
+                currentContent = "Mì cay ngon tuyệt vời, phục vụ chu đáo!";
+                document.getElementById('review-text').innerText = currentContent;
+            } finally { loader.style.display = 'none'; contentArea.style.display = 'block'; }
+        }
+
+        function copyAndRedirect() {
+            if (!currentContent) return;
+            if (navigator.vibrate) navigator.vibrate(50);
+            fireConfetti();
+
+            // --- LOGIC CHÈN EMOJI ĐỊNH DANH Ở ĐÂY ---
+            let finalContent = currentContent;
+            if (STAFF_EMOJI && STAFF_EMOJI !== "None" && STAFF_EMOJI !== "") {
+                finalContent = currentContent + " " + STAFF_EMOJI;
+                console.log("Đã chèn mã định danh:", STAFF_EMOJI);
+            }
+            // ------------------------------------------
+
+            const el = document.createElement('textarea');
+            el.value = finalContent; // Copy nội dung đã có icon
+            document.body.appendChild(el);
+            el.select();
+            document.execCommand('copy');
+            document.body.removeChild(el);
+            
+            const toast = document.getElementById("toast");
+            toast.classList.add("show");
+            
+            setTimeout(() => { 
+                toast.classList.remove("show");
+                window.location.href = MAPS_LINK; 
+            }, 2000);
+        }
+        
+        window.onload = function() { fetchReview(); };
+    </script>
+</body>
+</html>

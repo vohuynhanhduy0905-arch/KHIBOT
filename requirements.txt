@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+sqlalchemy
+python-telegram-bot
+jinja2
+python-multipart
+psycopg2-binary
+requests
