@@ -5,7 +5,7 @@ from sqlalchemy.orm import sessionmaker
 from datetime import datetime
 
 # --- DÁN LINK NEON CỦA BẠN VÀO ĐÂY ---
-DATABASE_URL = "postgresql://neondb_owner:npg_f1MbRLZmo4PJ@ep-flat-recipe-a1f9rbiq-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require" 
+DATABASE_URL = os.environ.get("DATABASE_URL")
 
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
@@ -42,3 +42,4 @@ class ReviewLog(Base):
 
 def init_db():
     Base.metadata.create_all(bind=engine)
+
