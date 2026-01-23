@@ -1,6 +1,7 @@
 import os
 import random
 import asyncio
+import io
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
@@ -11,6 +12,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 from database import SessionLocal, Employee, ReviewLog, Review, init_db
 from sqlalchemy import desc
 from sqlalchemy.sql import func  
+from PIL import Image, ImageDraw, ImageFont
 
 # --- CẤU HÌNH ---
 TOKEN = os.environ.get("TELEGRAM_TOKEN") 
@@ -31,6 +33,68 @@ EMOJI_POOL = [
     "🍧", "🍨", "🍩", "🍪", "🎂", "🍰", "🧁", "🥧", "🍫", "🍬", "🍭", "🍮", "🍯", "🍼", "🥛", "☕", "🍵", 
     "🍶", "🍾", "🍷", "🍸", "🍹", "🍺", "🍻", "🥂", "🥃", "🥤", "🧃", "🧉", "🧊", "🥢", "🍽️", "🍴", "🥄"
 ]
+
+# --- HÀM VẼ THẺ NHÂN VIÊN ---
+def create_card_image(name, emoji, balance):
+    # 1. Cấu hình kích thước thẻ
+    W, H = 800, 500
+    
+    # 2. Tạo nền (Nếu có ảnh card_bg.jpg thì dùng, không thì tạo nền cam gradient)
+    try:
+        img = Image.open("static/card_bg.jpg").convert("RGBA")
+        img = img.resize((W, H))
+    except:
+        # Tạo nền màu cam mặc định nếu thiếu file
+        img = Image.new('RGBA', (W, H), color='#F37021')
+
+    draw = ImageDraw.Draw(img)
+
+    # 3. Xử lý Font chữ (Cần file font.ttf trong folder static để đẹp)
+    try:
+        font_name = ImageFont.truetype("static/font.ttf", 60) # Font Tên to
+        font_info = ImageFont.truetype("static/font.ttf", 40) # Font Số dư
+        font_emoji = ImageFont.truetype("static/font.ttf", 100) # Font Emoji
+    except:
+        # Font mặc định nếu thiếu file font
+        font_name = ImageFont.load_default()
+        font_info = ImageFont.load_default()
+        font_emoji = ImageFont.load_default()
+
+    # 4. Tính toán Rank (Danh hiệu)
+    rank = "Tập Sự 🌱"
+    if balance >= 50000: rank = "Chiến Binh ⚔️"
+    if balance >= 250000: rank = "Đại Gia 💎"
+    if balance >= 350000: rank = "Huyền Thoại 🏆"
+
+    # 5. Vẽ nội dung lên thẻ
+    # Màu chữ (trắng)
+    text_color = (255, 255, 255)
+    
+    # Hàm căn giữa text
+    def draw_centered_text(y, text, font, fill):
+        bbox = draw.textbbox((0, 0), text, font=font)
+        text_width = bbox[2] - bbox[0]
+        x = (W - text_width) / 2
+        draw.text((x, y), text, font=font, fill=fill)
+
+    # Vẽ Emoji (Icon to đùng ở giữa trên)
+    draw_centered_text(80, emoji, font_emoji, text_color)
+
+    # Vẽ Tên (Ở giữa)
+    draw_centered_text(220, name, font_name, text_color)
+
+    # Vẽ Rank
+    draw_centered_text(300, f"Rank: {rank}", font_info, (255, 223, 0)) # Màu vàng
+
+    # Vẽ Tiền (To, đậm ở dưới)
+    draw_centered_text(360, f"💰 Ví: {balance:,.0f}đ", font_info, text_color)
+
+    # 6. Xuất ảnh ra bộ nhớ đệm (RAM)
+    bio = io.BytesIO()
+    bio.name = 'card.png'
+    img.save(bio, 'PNG')
+    bio.seek(0)
+    return bio
 
 # --- 1. LỆNH CƠ BẢN ---
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -59,12 +123,29 @@ async def me_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
     db = SessionLocal()
     emp = db.query(Employee).filter(Employee.telegram_id == user_id).first()
+    
     if emp:
-        logs = db.query(ReviewLog).filter(ReviewLog.staff_id == user_id).order_by(desc(ReviewLog.created_at)).limit(5).all()
-        history = "\n".join([f"{l.stars}⭐: {l.reviewer_name}" for l in logs]) if logs else "Chưa có review nào."
-        await update.message.reply_text(f"💰 Ví: {emp.balance:,.0f}đ\nIcon: {emp.emoji}\n\n🕒 Lịch sử:\n{history}")
+        # 1. Gửi thông báo "Đang in thẻ..." để user đỡ sốt ruột
+        temp_msg = await update.message.reply_text("🎨 Đang thiết kế thẻ VIP của bạn...")
+        
+        # 2. Gọi hàm vẽ ảnh
+        # Chạy trong thread khác để không lag bot nếu vẽ lâu
+        loop = asyncio.get_running_loop()
+        photo_file = await loop.run_in_executor(None, create_card_image, emp.name, emp.emoji, emp.balance)
+
+        # 3. Lấy lịch sử review để ghi vào caption
+        logs = db.query(ReviewLog).filter(ReviewLog.staff_id == user_id).order_by(desc(ReviewLog.created_at)).limit(3).all()
+        history_text = "\n".join([f"✅ {l.stars}⭐: {l.reviewer_name}" for l in logs]) if logs else "Chưa có review nào."
+        
+        caption = f"💳 **THẺ NHÂN VIÊN ITADA**\n\n🕒 <b>Lịch sử gần đây:</b>\n{history_text}\n\n👉 <i>Quét mã QR để tích điểm!</i>"
+
+        # 4. Gửi ảnh và xóa tin nhắn chờ
+        await update.message.reply_photo(photo=photo_file, caption=caption, parse_mode="HTML")
+        await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=temp_msg.message_id)
+        
     else:
         await update.message.reply_text("Chưa đăng ký. Bấm /start")
+    
     db.close()
 
 async def top_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -251,6 +332,7 @@ def get_review():
         content = random.choice(backup)
         
     return {"content": content}
+
 
 
 
