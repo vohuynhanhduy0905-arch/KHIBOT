@@ -42,8 +42,25 @@ def crop_to_circle(img):
     output = Image.new('RGBA', img.size, (0, 0, 0, 0))
     output.paste(img, (0, 0), mask)
     return output
+
+# --- HÀM TÍNH RANK VÀ ICON (Dùng chung cho cả ảnh và tin nhắn) ---
+def get_rank_info(balance):
+    # Mặc định
+    name = "Dân Thường"
+    icon = "🌱" # Mầm non
+
+    if balance >= 10000:  name, icon = "Kẻ Tập Sự", "🪵"      # Gỗ
+    if balance >= 30000:  name, icon = "Người Mới", "🥉"      # Đồng
+    if balance >= 50000:  name, icon = "Tân Binh", "🥈"       # Bạc
+    if balance >= 70000:  name, icon = "Kẻ Thách Thức", "⚔️" # Kiếm
+    if balance >= 100000: name, icon = "Chiến Binh", "🛡️"    # Khiên
+    if balance >= 150000: name, icon = "Cao Thủ", "🥋"        # Đai đen
+    if balance >= 200000: name, icon = "Đại Gia", "💎"        # Kim cương
+    if balance >= 300000: name, icon = "Bá Chủ", "👑"         # Vương miện
+    if balance >= 500000: name, icon = "Huyền Thoại", "👑🐉"    # Rồng
+
+    return name, icon
     
-# --- CODE ĐÃ NÂNG CẤP ĐỂ CHÈN LOGO ---
 def create_card_image(name, emoji, balance, avatar_bytes=None):
     W, H = 800, 500
     
@@ -52,23 +69,31 @@ def create_card_image(name, emoji, balance, avatar_bytes=None):
         img = Image.open("static/card_bg.jpg").convert("RGBA")
         img = img.resize((W, H))
     except:
-        # Nếu chưa có nền, dùng màu xanh của logo bạn (Mã màu #1A5336)
-        img = Image.new('RGBA', (W, H), color='#1A5336')
+        img = Image.new('RGBA', (W, H), color='#1A5336') # Màu xanh lá đậm
 
     draw = ImageDraw.Draw(img)
 
-    # --- MỚI: DÁN LOGO VÀO GÓC TRÁI ---
+    # --- XỬ LÝ LOGO (CẮT TRÒN & ĐƯA SANG PHẢI) ---
     try:
         logo = Image.open("static/logo.png").convert("RGBA")
-        # Resize logo bé lại (ví dụ chiều cao 80px)
-        ratio = 80 / logo.height
-        new_w = int(logo.width * ratio)
-        logo = logo.resize((new_w, 80))
-        # Dán vào góc trái trên cùng (cách lề 20px)
-        img.paste(logo, (20, 20), logo)
-    except:
-        pass # Không có logo thì thôi
-    # ----------------------------------
+        
+        # Resize logo về kích thước chuẩn (ví dụ 110x110 px)
+        logo_size = 110
+        logo = logo.resize((logo_size, logo_size))
+        
+        # Cắt logo thành hình tròn (để giấu cái nền trắng hình vuông đi)
+        logo = crop_to_circle(logo)
+        
+        # Tính toán vị trí: Góc Phải Trên
+        # Cách lề phải 30px, Cách lề trên 30px
+        x_pos = W - logo_size - 30 
+        y_pos = 30
+        
+        # Dán logo vào
+        img.paste(logo, (x_pos, y_pos), logo)
+    except Exception as e:
+        print(f"Lỗi logo: {e}")
+    # ---------------------------------------------
 
     # 2. Xử lý Avatar (Giữ nguyên)
     if avatar_bytes:
@@ -76,13 +101,14 @@ def create_card_image(name, emoji, balance, avatar_bytes=None):
             avatar = Image.open(avatar_bytes).convert("RGBA")
             avatar = avatar.resize((160, 160))
             avatar = crop_to_circle(avatar)
-            img.paste(avatar, (W//2 - 80, 50), avatar) # Đẩy xuống xíu (y=50)
+            # Thêm viền trắng mỏng cho avatar nổi bật trên nền xanh
+            draw.ellipse((W//2 - 82, 38, W//2 + 82, 202), outline="#F4D03F", width=3) # Viền vàng
+            img.paste(avatar, (W//2 - 80, 40), avatar)
         except:
-            draw.ellipse((W//2 - 80, 50, W//2 + 80, 210), outline="white", width=5)
+            pass
 
-    # 3. Load Font (Nhớ tải font Montserrat-Bold đổi tên thành font.ttf)
+    # 3. Load Font (Dùng font Montserrat hoặc font bạn đang có)
     try:
-        # Tăng kích thước font lên một chút cho rõ
         font_name = ImageFont.truetype("static/font.ttf", 65) 
         font_rank = ImageFont.truetype("static/font.ttf", 35)
         font_money = ImageFont.truetype("static/font.ttf", 60)
@@ -91,17 +117,8 @@ def create_card_image(name, emoji, balance, avatar_bytes=None):
         font_rank = ImageFont.load_default()
         font_money = ImageFont.load_default()
 
-        # 4. Tính Rank (ĐÃ SỬA LỖI THỤT ĐẦU DÒNG Ở ĐÂY)
-    rank = "Kẻ Vô Danh"
-    if balance >= 10000: rank = "Kẻ Tập Sự"
-    if balance >= 30000: rank = "Người Thử Thách"
-    if balance >= 50000: rank = "Kẻ Chiến Đấu"
-    if balance >= 70000: rank = "Chiến Tướng"
-    if balance >= 100000: rank = "Thủ Lĩnh"
-    if balance >= 150000: rank = "Thống Soái"
-    if balance >= 200000: rank = "Vương"
-    if balance >= 300000: rank = "Đế Vương"
-    if balance >= 500000: rank = "Chí Tôn"
+   # 4. Tính Rank (GỌI HÀM MỚI Ở ĐÂY)
+    rank_name, rank_icon = get_rank_info(balance)
 
     
     # 5. Căn giữa
@@ -115,10 +132,10 @@ def create_card_image(name, emoji, balance, avatar_bytes=None):
         draw.text((x, y), text, font=font, fill=color)
 
     # 6. Viết chữ
-    draw_centered(240, name, font_name, "white")
-    # Rank màu Vàng (Gold) hợp với màu xanh lá
-    draw_centered(320, f"{rank}", font_rank, "#F4D03F") 
-    draw_centered(380, f"Ví: {balance:,.0f}đ", font_money, "white")
+    draw_centered(230, name, font_name, "white")
+    # Màu chữ Rank: Vàng Gold (#F4D03F) cho hợp background
+    draw_centered(310, f"{rank}", font_rank, "#F4D03F") 
+    draw_centered(370, f"Ví: {balance:,.0f}đ", font_money, "white")
 
     # 7. Xuất ảnh
     bio = io.BytesIO()
@@ -156,32 +173,41 @@ async def me_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     emp = db.query(Employee).filter(Employee.telegram_id == str(user.id)).first()
     
     if emp:
-        msg = await update.message.reply_text("📸 Đang lấy ảnh đại diện để in thẻ...")
+        msg = await update.message.reply_text("📸 Đợi cái ní, đang lấy avt để in thẻ...")
         
-        # --- LOGIC LẤY AVATAR ---
+        # --- LOGIC LẤY AVATAR (GIỮ NGUYÊN) ---
         avatar_io = None
         try:
-            # Lấy danh sách ảnh đại diện
             photos = await user.get_profile_photos(limit=1)
             if photos.total_count > 0:
-                # Lấy ảnh kích thước lớn nhất (cái cuối cùng trong list)
                 photo_file = await photos.photos[0][-1].get_file()
-                # Tải ảnh về bộ nhớ đệm
                 avatar_bytes = await photo_file.download_as_bytearray()
                 avatar_io = io.BytesIO(avatar_bytes)
-        except Exception as e:
-            print(f"Không lấy được avatar: {e}")
-        # ------------------------
+        except: pass
+        # -------------------------------------
 
-        # Gọi hàm vẽ ảnh (truyền avatar vào)
+        # Gọi hàm vẽ ảnh
         loop = asyncio.get_running_loop()
         photo_file = await loop.run_in_executor(None, create_card_image, emp.name, emp.emoji, emp.balance, avatar_io)
 
+        # Lấy thông tin Rank & Icon
+        rank_name, rank_icon = get_rank_info(emp.balance)
+
         # Lấy lịch sử
-        logs = db.query(ReviewLog).filter(ReviewLog.staff_id == str(user.id)).order_by(desc(ReviewLog.created_at)).limit(3).all()
-        history = "\n".join([f"✅ {l.stars}⭐: {l.reviewer_name}" for l in logs]) if logs else "Chưa có review nào."
+        logs = db.query(ReviewLog).filter(ReviewLog.staff_id == str(user.id)).order_by(desc(ReviewLog.created_at)).limit(5).all()
+        history = "\n".join([f"{l.stars}⭐: {l.reviewer_name}" for l in logs]) if logs else "   (Chưa có review nào)"
         
-        caption = f"💳 **THẺ NHÂN VIÊN VIP**\n\n🕒 <b>Lịch sử:</b>\n{history}"
+        # --- TẠO CAPTION ĐẸP Ở ĐÂY ---
+        caption = (
+            f"💳 <b>THẺ NHÂN VIÊN </b>\n"
+            f"━━━━━━━━━━━━━━━\n"
+            f"👤 <b>Cấp bậc:</b> {rank_icon} {rank_name}\n"
+            f"💰 <b>Số dư ví:</b> {emp.balance:,.0f}đ\n"
+            f"━━━━━━━━━━━━━━━\n"
+            f"🕒 <b>Lịch sử hoạt động:</b>\n"
+            f"{history}\n\n"
+            f"👉 <i>Quét mã QR để tích điểm ngay!</i>"
+        )
 
         await update.message.reply_photo(photo=photo_file, caption=caption, parse_mode="HTML")
         await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=msg.message_id)
@@ -375,6 +401,7 @@ def get_review():
         content = random.choice(backup)
         
     return {"content": content}
+
 
 
 
