@@ -43,10 +43,11 @@ def crop_to_circle(img):
     output.paste(img, (0, 0), mask)
     return output
     
+# --- COPY ĐOẠN NÀY ĐÈ VÀO HÀM create_card_image CŨ ---
 def create_card_image(name, emoji, balance, avatar_bytes=None):
     W, H = 800, 500
     
-    # 1. Tạo nền (Nếu có ảnh nền static/card_bg.jpg thì càng đẹp)
+    # 1. Tạo nền
     try:
         img = Image.open("static/card_bg.jpg").convert("RGBA")
         img = img.resize((W, H))
@@ -55,23 +56,18 @@ def create_card_image(name, emoji, balance, avatar_bytes=None):
 
     draw = ImageDraw.Draw(img)
 
-    # 2. Xử lý Avatar (Điểm nhấn chính)
+    # 2. Xử lý Avatar
     if avatar_bytes:
         try:
-            # Đọc ảnh từ Telegram gửi về
             avatar = Image.open(avatar_bytes).convert("RGBA")
-            # Resize về kích thước chuẩn (160x160)
             avatar = avatar.resize((160, 160))
-            # Cắt hình tròn
             avatar = crop_to_circle(avatar)
-            # Dán vào giữa (trừ đi một nửa chiều rộng ảnh để căn giữa)
             img.paste(avatar, (W//2 - 80, 40), avatar)
         except Exception as e:
             print(f"Lỗi avatar: {e}")
-            # Nếu lỗi thì vẽ tạm cái vòng tròn trắng
             draw.ellipse((W//2 - 80, 40, W//2 + 80, 200), outline="white", width=5)
 
-    # 3. Load Font (Vẫn cần file static/font.ttf để Tên đẹp nhé)
+    # 3. Load Font
     try:
         font_name = ImageFont.truetype("static/font.ttf", 60)
         font_rank = ImageFont.truetype("static/font.ttf", 35)
@@ -81,17 +77,17 @@ def create_card_image(name, emoji, balance, avatar_bytes=None):
         font_rank = ImageFont.load_default()
         font_money = ImageFont.load_default()
 
-    # 4. Tính Rank
+    # 4. Tính Rank (ĐÃ SỬA LỖI THỤT ĐẦU DÒNG Ở ĐÂY)
     rank = "Kẻ Vô Danh"
-if balance >= 10000: rank = "Kẻ Tập Sự"
-if balance >= 30000: rank = "Người Thử Thách"
-if balance >= 50000: rank = "Kẻ Chiến Đấu"
-if balance >= 70000: rank = "Chiến Tướng"
-if balance >= 100000: rank = "Thủ Lĩnh"
-if balance >= 150000: rank = "Thống Soái"
-if balance >= 200000: rank = "Vương"
-if balance >= 300000: rank = "Đế Vương"
-if balance >= 500000: rank = "Chí Tôn"
+    if balance >= 10000: rank = "Kẻ Tập Sự"
+    if balance >= 30000: rank = "Người Thử Thách"
+    if balance >= 50000: rank = "Kẻ Chiến Đấu"
+    if balance >= 70000: rank = "Chiến Tướng"
+    if balance >= 100000: rank = "Thủ Lĩnh"
+    if balance >= 150000: rank = "Thống Soái"
+    if balance >= 200000: rank = "Vương"
+    if balance >= 300000: rank = "Đế Vương"
+    if balance >= 500000: rank = "Chí Tôn"
 
     # 5. Hàm căn giữa text
     def draw_centered(y, text, font, color):
@@ -103,9 +99,9 @@ if balance >= 500000: rank = "Chí Tôn"
         x = (W - text_width) / 2
         draw.text((x, y), text, font=font, fill=color)
 
-    # 6. Viết chữ (Tên và Tiền) - Đẩy vị trí xuống dưới để nhường chỗ cho Avatar
+    # 6. Viết chữ
     draw_centered(230, name, font_name, "white")
-    draw_centered(310, f"Rank: {rank}", font_rank, "#FFD700") # Màu vàng
+    draw_centered(310, f"Rank: {rank}", font_rank, "#FFD700") 
     draw_centered(370, f"Ví: {balance:,.0f}đ", font_money, "white")
 
     # 7. Xuất ảnh
@@ -363,6 +359,7 @@ def get_review():
         content = random.choice(backup)
         
     return {"content": content}
+
 
 
 
