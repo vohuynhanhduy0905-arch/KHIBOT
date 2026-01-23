@@ -61,7 +61,7 @@ async def me_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     emp = db.query(Employee).filter(Employee.telegram_id == user_id).first()
     if emp:
         logs = db.query(ReviewLog).filter(ReviewLog.staff_id == user_id).order_by(desc(ReviewLog.created_at)).limit(5).all()
-        history = "\n".join([f"- {l.stars}⭐: {l.reviewer_name}" for l in logs]) if logs else "Chưa có review nào."
+        history = "\n".join([f"{l.stars}⭐: {l.reviewer_name}" for l in logs]) if logs else "Chưa có review nào."
         await update.message.reply_text(f"💰 Ví: {emp.balance:,.0f}đ\nIcon: {emp.emoji}\n\n🕒 Lịch sử:\n{history}")
     else:
         await update.message.reply_text("Chưa đăng ký. Bấm /start")
@@ -251,6 +251,7 @@ def get_review():
         content = random.choice(backup)
         
     return {"content": content}
+
 
 
 
