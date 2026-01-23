@@ -2,8 +2,6 @@ import os
 import random
 import asyncio
 import io
-from pilmoji import Pilmoji  
-from pilmoji.source import GoogleEmojiSource 
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
@@ -36,62 +34,81 @@ EMOJI_POOL = [
     "🍶", "🍾", "🍷", "🍸", "🍹", "🍺", "🍻", "🥂", "🥃", "🥤", "🧃", "🧉", "🧊", "🥢", "🍽️", "🍴", "🥄"
 ]
 
-# --- HÀM VẼ THẺ SỬ DỤNG PILMOJI (CÓ MÀU) ---
-def create_card_image(name, emoji, balance):
+# Hàm phụ để cắt ảnh thành hình tròn
+def crop_to_circle(img):
+    mask = Image.new('L', img.size, 0)
+    draw = ImageDraw.Draw(mask)
+    draw.ellipse((0, 0) + img.size, fill=255)
+    output = Image.new('RGBA', img.size, (0, 0, 0, 0))
+    output.paste(img, (0, 0), mask)
+    return output
+    
+def create_card_image(name, emoji, balance, avatar_bytes=None):
     W, H = 800, 500
     
-    # 1. Tạo nền (như cũ)
+    # 1. Tạo nền (Nếu có ảnh nền static/card_bg.jpg thì càng đẹp)
     try:
         img = Image.open("static/card_bg.jpg").convert("RGBA")
         img = img.resize((W, H))
     except:
         img = Image.new('RGBA', (W, H), color='#F37021')
 
-    # 2. Load Font chữ (Vẫn dùng Roboto cho chữ)
+    draw = ImageDraw.Draw(img)
+
+    # 2. Xử lý Avatar (Điểm nhấn chính)
+    if avatar_bytes:
+        try:
+            # Đọc ảnh từ Telegram gửi về
+            avatar = Image.open(avatar_bytes).convert("RGBA")
+            # Resize về kích thước chuẩn (160x160)
+            avatar = avatar.resize((160, 160))
+            # Cắt hình tròn
+            avatar = crop_to_circle(avatar)
+            # Dán vào giữa (trừ đi một nửa chiều rộng ảnh để căn giữa)
+            img.paste(avatar, (W//2 - 80, 40), avatar)
+        except Exception as e:
+            print(f"Lỗi avatar: {e}")
+            # Nếu lỗi thì vẽ tạm cái vòng tròn trắng
+            draw.ellipse((W//2 - 80, 40, W//2 + 80, 200), outline="white", width=5)
+
+    # 3. Load Font (Vẫn cần file static/font.ttf để Tên đẹp nhé)
     try:
-        # Bạn nhớ tải file Roboto-Bold.ttf đổi tên thành font.ttf bỏ vào static nhé
-        font_emoji = ImageFont.truetype("static/font.ttf", 100) 
-        font_name = ImageFont.truetype("static/font.ttf", 70)   
-        font_rank = ImageFont.truetype("static/font.ttf", 40)   
-        font_money = ImageFont.truetype("static/font.ttf", 60)
+        font_name = ImageFont.truetype("static/font.ttf", 60)
+        font_rank = ImageFont.truetype("static/font.ttf", 35)
+        font_money = ImageFont.truetype("static/font.ttf", 55)
     except:
-        font_emoji = ImageFont.load_default()
         font_name = ImageFont.load_default()
         font_rank = ImageFont.load_default()
         font_money = ImageFont.load_default()
 
-    # 3. Tính toán Rank
-    rank = "Tập Sự"
-    if balance >= 50000: rank = "Chiến Binh"
-    if balance >= 250000: rank = "Đại Gia"
-    if balance >= 350000: rank = "Huyền Thoại"
+    # 4. Tính Rank
+    rank = "Kẻ Vô Danh"
+if balance >= 10000: rank = "Kẻ Tập Sự"
+if balance >= 30000: rank = "Người Thử Thách"
+if balance >= 50000: rank = "Kẻ Chiến Đấu"
+if balance >= 70000: rank = "Chiến Tướng"
+if balance >= 100000: rank = "Thủ Lĩnh"
+if balance >= 150000: rank = "Thống Soái"
+if balance >= 200000: rank = "Vương"
+if balance >= 300000: rank = "Đế Vương"
+if balance >= 500000: rank = "Chí Tôn"
 
-    # 4. Sử dụng Pilmoji để vẽ (Hỗ trợ Emoji màu)
-    with Pilmoji(img) as pilmoji:
-        # Hàm căn giữa custom cho Pilmoji
-        def draw_centered(y, text, font, color):
-            # Lấy kích thước text
-            try:
-                # Pillow mới
-                draw = ImageDraw.Draw(img)
-                bbox = draw.textbbox((0, 0), text, font=font)
-                text_width = bbox[2] - bbox[0]
-            except:
-                # Pillow cũ
-                text_width = font.getlength(text)
-                
-            x = (W - text_width) / 2
-            
-            # VẼ BẰNG PILMOJI THAY VÌ DRAW.TEXT
-            pilmoji.text((x, y), text, font=font, fill=color, emoji_position_offset=(0, 10))
+    # 5. Hàm căn giữa text
+    def draw_centered(y, text, font, color):
+        try:
+            bbox = draw.textbbox((0, 0), text, font=font)
+            text_width = bbox[2] - bbox[0]
+        except:
+            text_width = font.getlength(text)
+        x = (W - text_width) / 2
+        draw.text((x, y), text, font=font, fill=color)
 
-        # Vẽ nội dung
-        draw_centered(50, emoji, font_emoji, "white")        # Emoji sẽ có màu!
-        draw_centered(180, name, font_name, "white")
-        draw_centered(280, f"Rank: {rank}", font_rank, "#FFD700")
-        draw_centered(350, f"Ví: {balance:,.0f}đ", font_money, "white")
+    # 6. Viết chữ (Tên và Tiền) - Đẩy vị trí xuống dưới để nhường chỗ cho Avatar
+    draw_centered(230, name, font_name, "white")
+    draw_centered(310, f"Rank: {rank}", font_rank, "#FFD700") # Màu vàng
+    draw_centered(370, f"Ví: {balance:,.0f}đ", font_money, "white")
 
-    # 5. Xuất ảnh
+    # 7. Xuất ảnh
     bio = io.BytesIO()
     bio.name = 'card.png'
     img.save(bio, 'PNG')
@@ -122,28 +139,40 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     db.close()
 
 async def me_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = str(update.effective_user.id)
+    user = update.effective_user
     db = SessionLocal()
-    emp = db.query(Employee).filter(Employee.telegram_id == user_id).first()
+    emp = db.query(Employee).filter(Employee.telegram_id == str(user.id)).first()
     
     if emp:
-        # 1. Gửi thông báo "Đang in thẻ..." để user đỡ sốt ruột
-        temp_msg = await update.message.reply_text("🎨 Đang thiết kế thẻ VIP của bạn...")
+        msg = await update.message.reply_text("📸 Đang lấy ảnh đại diện để in thẻ...")
         
-        # 2. Gọi hàm vẽ ảnh
-        # Chạy trong thread khác để không lag bot nếu vẽ lâu
+        # --- LOGIC LẤY AVATAR ---
+        avatar_io = None
+        try:
+            # Lấy danh sách ảnh đại diện
+            photos = await user.get_profile_photos(limit=1)
+            if photos.total_count > 0:
+                # Lấy ảnh kích thước lớn nhất (cái cuối cùng trong list)
+                photo_file = await photos.photos[0][-1].get_file()
+                # Tải ảnh về bộ nhớ đệm
+                avatar_bytes = await photo_file.download_as_bytearray()
+                avatar_io = io.BytesIO(avatar_bytes)
+        except Exception as e:
+            print(f"Không lấy được avatar: {e}")
+        # ------------------------
+
+        # Gọi hàm vẽ ảnh (truyền avatar vào)
         loop = asyncio.get_running_loop()
-        photo_file = await loop.run_in_executor(None, create_card_image, emp.name, emp.emoji, emp.balance)
+        photo_file = await loop.run_in_executor(None, create_card_image, emp.name, emp.emoji, emp.balance, avatar_io)
 
-        # 3. Lấy lịch sử review để ghi vào caption
-        logs = db.query(ReviewLog).filter(ReviewLog.staff_id == user_id).order_by(desc(ReviewLog.created_at)).limit(3).all()
-        history_text = "\n".join([f"✅ {l.stars}⭐: {l.reviewer_name}" for l in logs]) if logs else "Chưa có review nào."
+        # Lấy lịch sử
+        logs = db.query(ReviewLog).filter(ReviewLog.staff_id == str(user.id)).order_by(desc(ReviewLog.created_at)).limit(3).all()
+        history = "\n".join([f"✅ {l.stars}⭐: {l.reviewer_name}" for l in logs]) if logs else "Chưa có review nào."
         
-        caption = f"💳 **THẺ NHÂN VIÊN ITADA**\n\n🕒 <b>Lịch sử gần đây:</b>\n{history_text}\n\n👉 <i>Quét mã QR để tích điểm!</i>"
+        caption = f"💳 **THẺ NHÂN VIÊN VIP**\n\n🕒 <b>Lịch sử:</b>\n{history}"
 
-        # 4. Gửi ảnh và xóa tin nhắn chờ
         await update.message.reply_photo(photo=photo_file, caption=caption, parse_mode="HTML")
-        await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=temp_msg.message_id)
+        await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=msg.message_id)
         
     else:
         await update.message.reply_text("Chưa đăng ký. Bấm /start")
@@ -334,6 +363,7 @@ def get_review():
         content = random.choice(backup)
         
     return {"content": content}
+
 
 
 
