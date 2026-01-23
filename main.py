@@ -43,7 +43,7 @@ def crop_to_circle(img):
     output.paste(img, (0, 0), mask)
     return output
     
-# --- COPY ĐOẠN NÀY ĐÈ VÀO HÀM create_card_image CŨ ---
+# --- CODE ĐÃ NÂNG CẤP ĐỂ CHÈN LOGO ---
 def create_card_image(name, emoji, balance, avatar_bytes=None):
     W, H = 800, 500
     
@@ -52,32 +52,46 @@ def create_card_image(name, emoji, balance, avatar_bytes=None):
         img = Image.open("static/card_bg.jpg").convert("RGBA")
         img = img.resize((W, H))
     except:
-        img = Image.new('RGBA', (W, H), color='#F37021')
+        # Nếu chưa có nền, dùng màu xanh của logo bạn (Mã màu #1A5336)
+        img = Image.new('RGBA', (W, H), color='#1A5336')
 
     draw = ImageDraw.Draw(img)
 
-    # 2. Xử lý Avatar
+    # --- MỚI: DÁN LOGO VÀO GÓC TRÁI ---
+    try:
+        logo = Image.open("static/logo.png").convert("RGBA")
+        # Resize logo bé lại (ví dụ chiều cao 80px)
+        ratio = 80 / logo.height
+        new_w = int(logo.width * ratio)
+        logo = logo.resize((new_w, 80))
+        # Dán vào góc trái trên cùng (cách lề 20px)
+        img.paste(logo, (20, 20), logo)
+    except:
+        pass # Không có logo thì thôi
+    # ----------------------------------
+
+    # 2. Xử lý Avatar (Giữ nguyên)
     if avatar_bytes:
         try:
             avatar = Image.open(avatar_bytes).convert("RGBA")
             avatar = avatar.resize((160, 160))
             avatar = crop_to_circle(avatar)
-            img.paste(avatar, (W//2 - 80, 40), avatar)
-        except Exception as e:
-            print(f"Lỗi avatar: {e}")
-            draw.ellipse((W//2 - 80, 40, W//2 + 80, 200), outline="white", width=5)
+            img.paste(avatar, (W//2 - 80, 50), avatar) # Đẩy xuống xíu (y=50)
+        except:
+            draw.ellipse((W//2 - 80, 50, W//2 + 80, 210), outline="white", width=5)
 
-    # 3. Load Font
+    # 3. Load Font (Nhớ tải font Montserrat-Bold đổi tên thành font.ttf)
     try:
-        font_name = ImageFont.truetype("static/font.ttf", 60)
+        # Tăng kích thước font lên một chút cho rõ
+        font_name = ImageFont.truetype("static/font.ttf", 65) 
         font_rank = ImageFont.truetype("static/font.ttf", 35)
-        font_money = ImageFont.truetype("static/font.ttf", 55)
+        font_money = ImageFont.truetype("static/font.ttf", 60)
     except:
         font_name = ImageFont.load_default()
         font_rank = ImageFont.load_default()
         font_money = ImageFont.load_default()
 
-    # 4. Tính Rank (ĐÃ SỬA LỖI THỤT ĐẦU DÒNG Ở ĐÂY)
+        # 4. Tính Rank (ĐÃ SỬA LỖI THỤT ĐẦU DÒNG Ở ĐÂY)
     rank = "Kẻ Vô Danh"
     if balance >= 10000: rank = "Kẻ Tập Sự"
     if balance >= 30000: rank = "Người Thử Thách"
@@ -89,7 +103,8 @@ def create_card_image(name, emoji, balance, avatar_bytes=None):
     if balance >= 300000: rank = "Đế Vương"
     if balance >= 500000: rank = "Chí Tôn"
 
-    # 5. Hàm căn giữa text
+    
+    # 5. Căn giữa
     def draw_centered(y, text, font, color):
         try:
             bbox = draw.textbbox((0, 0), text, font=font)
@@ -100,9 +115,10 @@ def create_card_image(name, emoji, balance, avatar_bytes=None):
         draw.text((x, y), text, font=font, fill=color)
 
     # 6. Viết chữ
-    draw_centered(230, name, font_name, "white")
-    draw_centered(310, f"Rank: {rank}", font_rank, "#FFD700") 
-    draw_centered(370, f"Ví: {balance:,.0f}đ", font_money, "white")
+    draw_centered(240, name, font_name, "white")
+    # Rank màu Vàng (Gold) hợp với màu xanh lá
+    draw_centered(320, f"{rank}", font_rank, "#F4D03F") 
+    draw_centered(380, f"Ví: {balance:,.0f}đ", font_money, "white")
 
     # 7. Xuất ảnh
     bio = io.BytesIO()
@@ -359,6 +375,7 @@ def get_review():
         content = random.choice(backup)
         
     return {"content": content}
+
 
 
 
