@@ -225,7 +225,8 @@ def home(request: Request, ref: str = None):
     maps_url = "https://www.google.com/maps/place/KH%E1%BB%88+MILKTEA+%26+MACCHIATO/@9.5996676,105.9736035,17z/data=!4m6!3m5!1s0x31a04df7049cd473:0xc085b8838ce2b39!8m2!3d9.5996676!4d105.9736035!16s%2Fg%2F11jx4pcl6m?hl=vi"
     return templates.TemplateResponse("index.html", {"request": request, "maps_url": maps_url, "staff_emoji": emoji})
 
-# --- THÊM ĐOẠN NÀY ĐỂ GIỮ WEB LUÔN SỐNG ---
+# Cho phép cả GET (trình duyệt) và HEAD (UptimeRobot Free)
+@app.head("/ping")
 @app.get("/ping")
 def ping():
     return {"status": "ok", "message": "Bot is alive!"}
@@ -250,6 +251,7 @@ def get_review():
         content = random.choice(backup)
         
     return {"content": content}
+
 
 
 
