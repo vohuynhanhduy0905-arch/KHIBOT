@@ -34,62 +34,62 @@ EMOJI_POOL = [
     "🍶", "🍾", "🍷", "🍸", "🍹", "🍺", "🍻", "🥂", "🥃", "🥤", "🧃", "🧉", "🧊", "🥢", "🍽️", "🍴", "🥄"
 ]
 
-# --- HÀM VẼ THẺ NHÂN VIÊN ---
+# --- Thay thế hàm create_card_image cũ bằng hàm này ---
 def create_card_image(name, emoji, balance):
-    # 1. Cấu hình kích thước thẻ
     W, H = 800, 500
     
-    # 2. Tạo nền (Nếu có ảnh card_bg.jpg thì dùng, không thì tạo nền cam gradient)
+    # 1. Tạo nền
     try:
+        # Nếu có ảnh nền thì dùng
         img = Image.open("static/card_bg.jpg").convert("RGBA")
         img = img.resize((W, H))
     except:
-        # Tạo nền màu cam mặc định nếu thiếu file
+        # Không có thì tạo nền cam
         img = Image.new('RGBA', (W, H), color='#F37021')
 
     draw = ImageDraw.Draw(img)
 
-    # 3. Xử lý Font chữ (Cần file font.ttf trong folder static để đẹp)
+    # 2. CỐ GẮNG LOAD FONT (Quan trọng nhất)
+    # Lưu ý: Bạn PHẢI có file static/font.ttf thì mới đẹp được
     try:
-        font_name = ImageFont.truetype("static/font.ttf", 60) # Font Tên to
-        font_info = ImageFont.truetype("static/font.ttf", 40) # Font Số dư
-        font_emoji = ImageFont.truetype("static/font.ttf", 100) # Font Emoji
-    except:
-        # Font mặc định nếu thiếu file font
-        font_name = ImageFont.load_default()
-        font_info = ImageFont.load_default()
+        font_emoji = ImageFont.truetype("static/font.ttf", 100) # Icon to
+        font_name = ImageFont.truetype("static/font.ttf", 70)   # Tên to
+        font_rank = ImageFont.truetype("static/font.ttf", 40)   # Rank vừa
+        font_money = ImageFont.truetype("static/font.ttf", 60)  # Tiền to
+    except OSError:
+        # Nếu vẫn không tìm thấy font, dùng font mặc định nhưng sẽ rất xấu
+        print("❌ LỖI: Không tìm thấy file static/font.ttf")
         font_emoji = ImageFont.load_default()
+        font_name = ImageFont.load_default()
+        font_rank = ImageFont.load_default()
+        font_money = ImageFont.load_default()
 
-    # 4. Tính toán Rank (Danh hiệu)
-    rank = "Tập Sự 🌱"
-    if balance >= 50000: rank = "Chiến Binh ⚔️"
-    if balance >= 250000: rank = "Đại Gia 💎"
-    if balance >= 350000: rank = "Huyền Thoại 🏆"
+    # 3. Tính toán Rank
+    rank = "Tập Sự"
+    if balance >= 50000: rank = "Chiến Binh"
+    if balance >= 250000: rank = "Đại Gia"
+    if balance >= 350000: rank = "Huyền Thoại"
 
-    # 5. Vẽ nội dung lên thẻ
-    # Màu chữ (trắng)
-    text_color = (255, 255, 255)
-    
-    # Hàm căn giữa text
-    def draw_centered_text(y, text, font, fill):
-        bbox = draw.textbbox((0, 0), text, font=font)
-        text_width = bbox[2] - bbox[0]
+    # 4. Hàm căn giữa
+    def draw_centered(y, text, font, color):
+        try:
+            # Cách mới (Pillow > 10.0.0)
+            bbox = draw.textbbox((0, 0), text, font=font)
+            text_width = bbox[2] - bbox[0]
+        except:
+            # Cách cũ (dự phòng)
+            text_width = draw.textlength(text, font=font)
+            
         x = (W - text_width) / 2
-        draw.text((x, y), text, font=font, fill=fill)
+        draw.text((x, y), text, font=font, fill=color)
 
-    # Vẽ Emoji (Icon to đùng ở giữa trên)
-    draw_centered_text(80, emoji, font_emoji, text_color)
+    # 5. Vẽ lên ảnh
+    draw_centered(50, emoji, font_emoji, "white")       # Emoji
+    draw_centered(180, name, font_name, "white")        # Tên
+    draw_centered(280, f"Rank: {rank}", font_rank, "#FFD700") # Rank (Màu vàng)
+    draw_centered(350, f"Ví: {balance:,.0f}đ", font_money, "white") # Tiền
 
-    # Vẽ Tên (Ở giữa)
-    draw_centered_text(220, name, font_name, text_color)
-
-    # Vẽ Rank
-    draw_centered_text(300, f"Rank: {rank}", font_info, (255, 223, 0)) # Màu vàng
-
-    # Vẽ Tiền (To, đậm ở dưới)
-    draw_centered_text(360, f"💰 Ví: {balance:,.0f}đ", font_info, text_color)
-
-    # 6. Xuất ảnh ra bộ nhớ đệm (RAM)
+    # 6. Xuất ảnh
     bio = io.BytesIO()
     bio.name = 'card.png'
     img.save(bio, 'PNG')
@@ -332,6 +332,7 @@ def get_review():
         content = random.choice(backup)
         
     return {"content": content}
+
 
 
 
