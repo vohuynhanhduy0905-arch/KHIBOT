@@ -535,23 +535,33 @@ async def check_private(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
             # Xóa thông báo sau 10s
             await asyncio.sleep(10)
-            try: await msg.delete()
-            except: pass
+            try: 
+                await msg.delete()
+            except: 
+                pass
             
         except Exception as e:
             # Nếu Bot không có quyền Admin thì chỉ cảnh báo
             msg = await context.bot.send_message(chat_id, f"⚠️ Đừng spam nữa {user.first_name}!")
-            await asyncio.sleep(3); 
-            try: await msg.delete(); except: pass
+            await asyncio.sleep(3)
+            
+            # --- ĐOẠN ĐÃ SỬA LỖI ---
+            try: 
+                await msg.delete()
+            except: 
+                pass
+            # -----------------------
             
         return False
 
-    # Nếu chưa đến mức bị Mute thì chỉ nhắc nhở nhẹ (chỉ nhắc 1 lần để tránh bot spam ngược)
+    # Nếu chưa đến mức bị Mute thì chỉ nhắc nhở nhẹ
     if len(SPAM_TRACKER[user_id]) == 1:
         msg = await update.message.reply_text(f"🤫 {user.first_name}, qua nhắn riêng với Bot nhé!")
         await asyncio.sleep(5)
-        try: await msg.delete()
-        except: pass
+        try: 
+            await msg.delete()
+        except: 
+            pass
     
     return False
 # --- CÁC LỆNH BOT ---
@@ -939,6 +949,7 @@ def get_review():
         "Trà trái cây tươi mát, uống là nghiền. Sẽ quay lại!"
     ])
     return {"content": content}
+
 
 
 
