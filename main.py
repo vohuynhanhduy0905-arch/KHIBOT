@@ -2,6 +2,7 @@ import os
 import random
 import asyncio
 import io
+import time
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
@@ -10,7 +11,7 @@ from fastapi.staticfiles import StaticFiles
 # --- CẬP NHẬT IMPORT (Dòng 8-15) ---
 from telegram import (
     Update, ReplyKeyboardMarkup, ReplyKeyboardRemove, BotCommand, 
-    InlineKeyboardButton, InlineKeyboardMarkup # <--- MỚI
+    InlineKeyboardButton, InlineKeyboardMarkup, ChatPermissions
 )
 from telegram.ext import (
     Application, CommandHandler, MessageHandler, filters, ContextTypes, 
@@ -28,6 +29,8 @@ TOKEN = os.environ.get("TELEGRAM_TOKEN")
 ADMIN_ID = "1587932557"
 WEB_URL = "https://trasuakhi.onrender.com" 
 MAIN_GROUP_ID = -1003566594243
+GROUP_INVITE_LINK = "https://t.me/c/3566594243/2"
+SPAM_TRACKER = {}
 
 # Setup
 init_db()
@@ -67,7 +70,16 @@ def get_rank_info(balance):
     if balance >= 300000: name, icon = "Bá Chủ", "👑"
     if balance >= 500000: name, icon = "Huyền Thoại", "👑🐉"
     return name, icon
-    
+
+# --- HÀM TẠO MENU CHÍNH CHO NHÂN VIÊN ---
+def get_main_menu():
+    keyboard = [
+        ["💳 Ví & Thẻ", "📅 Điểm Danh"],
+        ["🎰 Giải Trí", "🛒 Shop Xu"],
+        ["⚡ Order Nhanh (Vào Nhóm)"] # Nút to nhất ở dưới
+    ]
+    return ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=False)
+
 # --- HÀM VẼ THẺ NHÂN VIÊN (ĐÃ SỬA LỖI) ---
 def create_card_image(name, emoji, balance, coin, avatar_bytes=None):
     W, H = 800, 500
@@ -476,10 +488,76 @@ async def handle_game_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
             
         db.close()
         return
+        
+# --- HÀM PHỤ: CHỐNG SPAM & MUTE TỰ ĐỘNG ---
+async def check_private(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # 1. Nếu là chat riêng thì cho qua
+    if update.effective_chat.type == "private":
+        return True
+    
+    user = update.effective_user
+    chat_id = update.effective_chat.id
+    
+    # 2. Xóa tin nhắn lệnh ngay lập tức
+    try: await update.message.delete()
+    except: pass
+    
+    # --- LOGIC CHỐNG SPAM ---
+    user_id = user.id
+    now = time.time()
+    
+    # Tạo hồ sơ nếu chưa có
+    if user_id not in SPAM_TRACKER:
+        SPAM_TRACKER[user_id] = []
+        
+    # Lọc bỏ các lần spam cũ quá 10 giây trước
+    SPAM_TRACKER[user_id] = [t for t in SPAM_TRACKER[user_id] if now - t < 10]
+    
+    # Ghi nhận lần spam này
+    SPAM_TRACKER[user_id].append(now)
+    
+    # Nếu spam quá 3 lần trong 10 giây -> MUTE 5 PHÚT
+    if len(SPAM_TRACKER[user_id]) >= 3:
+        try:
+            # Mute 5 phút (300 giây)
+            await context.bot.restrict_chat_member(
+                chat_id=chat_id,
+                user_id=user_id,
+                permissions=ChatPermissions(can_send_messages=False),
+                until_date=now + 300 
+            )
+            
+            # Thông báo trừng phạt
+            msg = await context.bot.send_message(chat_id, f"🚫 <b>{user.first_name}</b> spam quá nhiều! Bị cấm chat 5 phút.", parse_mode="HTML")
+            
+            # Reset bộ đếm để tránh mute chồng
+            SPAM_TRACKER[user_id] = []
+            
+            # Xóa thông báo sau 10s
+            await asyncio.sleep(10)
+            try: await msg.delete()
+            except: pass
+            
+        except Exception as e:
+            # Nếu Bot không có quyền Admin thì chỉ cảnh báo
+            msg = await context.bot.send_message(chat_id, f"⚠️ Đừng spam nữa {user.first_name}!")
+            await asyncio.sleep(3); 
+            try: await msg.delete(); except: pass
+            
+        return False
 
+    # Nếu chưa đến mức bị Mute thì chỉ nhắc nhở nhẹ (chỉ nhắc 1 lần để tránh bot spam ngược)
+    if len(SPAM_TRACKER[user_id]) == 1:
+        msg = await update.message.reply_text(f"🤫 {user.first_name}, qua nhắn riêng với Bot nhé!")
+        await asyncio.sleep(5)
+        try: await msg.delete()
+        except: pass
+    
+    return False
 # --- CÁC LỆNH BOT ---
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check_private(update, context): return
     user = update.effective_user
     db = SessionLocal()
     emp = db.query(Employee).filter(Employee.telegram_id == str(user.id)).first()
@@ -498,11 +576,17 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     link = f"{WEB_URL}/?ref={user.id}"
     qr_api = f"https://api.qrserver.com/v1/create-qr-code/?size=300x300&data={link}"
-    msg = f"Chào <b>{emp.name}</b>!\nMã của bạn: {emp.emoji}\nLink khách: {link}"
-    await update.message.reply_photo(qr_api, caption=msg, parse_mode="HTML")
+    msg = (
+        f"Chào <b>{emp.name}</b> {emp.emoji}!\n"
+        f"Chúc một ngày làm việc năng suất.\n"
+        f"👇 <i>Chọn menu bên dưới:</i>"
+    )
+    # Gửi tin nhắn kèm MENU NÚT BẤM
+    await update.message.reply_text(msg, reply_markup=get_main_menu(), parse_mode="HTML")
     db.close()
 
 async def me_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check_private(update, context): return
     user = update.effective_user
     db = SessionLocal()
     emp = db.query(Employee).filter(Employee.telegram_id == str(user.id)).first()
@@ -546,6 +630,7 @@ async def me_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     db.close()
     
 async def top_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check_private(update, context): return
     db = SessionLocal()
     
     # Top 5 Đại Gia (Lương)
@@ -568,6 +653,7 @@ async def top_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     db.close()
 
 async def qr_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check_private(update, context): return
     user_id = str(update.effective_user.id)
     link = f"{WEB_URL}/?ref={user_id}"
     qr_api = f"https://api.qrserver.com/v1/create-qr-code/?size=500x500&data={link}"
@@ -575,6 +661,7 @@ async def qr_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # --- LOGIC ĐIỂM DANH (NHẬN 10K XU) ---
 async def daily_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check_private(update, context): return
     user = update.effective_user
     db = SessionLocal()
     emp = db.query(Employee).filter(Employee.telegram_id == str(user.id)).first()
@@ -604,6 +691,7 @@ async def daily_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # --- LOGIC HIỂN THỊ MENU SHOP ---
 async def shop_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check_private(update, context): return
     user = update.effective_user
     db = SessionLocal()
     emp = db.query(Employee).filter(Employee.telegram_id == str(user.id)).first()
@@ -657,11 +745,43 @@ async def admin_dashboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("🔓 <b>MENU ADMIN</b>", reply_markup=reply_markup, parse_mode="HTML")
 
 async def handle_admin_logic(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = str(update.effective_user.id)
-    text = update.message.text
-    if user_id != ADMIN_ID: return
+    # 1. Chặn spam trước
+    if not await check_private(update, context): return
 
-    admin_buttons = ["📋 Danh Sách NV", "📢 Gửi Thông Báo", "🔄 Reset Toàn Bộ", "❌ Thoát Admin", "📝 Xem Kho Review", "🗑 Xóa Hết Review"]
+    text = update.message.text
+    user = update.effective_user
+    user_id = str(user.id)
+
+    # --- XỬ LÝ MENU CHÍNH (NHÂN VIÊN) ---
+    if text == "💳 Ví & Thẻ":
+        await me_command(update, context) # Gọi hàm xem thẻ
+        return
+        
+    elif text == "📅 Điểm Danh":
+        await daily_command(update, context) # Gọi hàm điểm danh
+        return
+        
+    elif text == "🛒 Shop Xu":
+        await shop_command(update, context) # Gọi hàm Shop
+        return
+        
+    elif text == "🎰 Giải Trí":
+        await game_ui_command(update, context) # Gọi hàm Game
+        return
+
+    elif "Order Nhanh" in text:
+        # Gửi nút Link để bay sang nhóm
+        kb = [[InlineKeyboardButton("🚀 VÀO NHÓM ĐẶT MÓN", url=GROUP_INVITE_LINK)]]
+        await update.message.reply_text(
+            "📣 <b>CHUYỂN HƯỚNG ORDER</b>\n\nBạn muốn đặt món cho khách hoặc cho mình?\nQua nhóm chung để Order nhé!", 
+            reply_markup=InlineKeyboardMarkup(kb),
+            parse_mode="HTML"
+        )
+        return
+
+    # --- XỬ LÝ MENU ADMIN (Chỉ Admin mới dùng được) ---
+    if user_id == ADMIN_ID:
+        admin_buttons = ["📋 Danh Sách NV", "📢 Gửi Thông Báo", "🔄 Reset Toàn Bộ", "❌ Thoát Admin", "📝 Xem Kho Review", "🗑 Xóa Hết Review"]
     if text not in admin_buttons:
         await handle_add_review(update, context)
         return
@@ -819,6 +939,7 @@ def get_review():
         "Trà trái cây tươi mát, uống là nghiền. Sẽ quay lại!"
     ])
     return {"content": content}
+
 
 
 
