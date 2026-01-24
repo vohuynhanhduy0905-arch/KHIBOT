@@ -130,7 +130,7 @@ def create_card_image(name, emoji, balance, coin, avatar_bytes=None):
     
     # Hiển thị 2 dòng tiền
     draw_centered(350, f"Ví: {balance:,.0f}đ", font_money, "white")
-    draw_centered(410, f"Xu: {coin:,.0f} 🪙", font_money, "#00FF00") # Màu xanh lá cho Xu
+    draw_centered(410, f"Xu: {coin:,.0f}", font_money, "#00FF00") # Màu xanh lá cho Xu
 
     # 8. Xuất ảnh
     bio = io.BytesIO()
@@ -214,12 +214,15 @@ async def handle_game_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
         await query.edit_message_text(txt, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
         return
 
+    # --- SỬA LẠI ĐOẠN NÀY TRONG main.py ---
     if data == "menu_pk":
-        if chat_type == "private":
-            await query.edit_message_text("🥊 <b>PK ĐỐI KHÁNG</b>\nVào nhóm chung để tạo kèo nhé!", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Quay lại", callback_data="back_home")]]), parse_mode="HTML")
-            return
-            
-        txt = "🥊 <b>SÀN ĐẤU PK 1vs1 (XU)</b>\nXu sẽ bị trừ ngay khi tạo kèo.\n👇 <b>Chọn mức thách đấu:</b>"
+        # Không bắt ra nhóm nữa, cho hiện nút cược luôn tại đây
+        txt = (
+            "🥊 <b>SÀN ĐẤU PK 1vs1 (XU)</b>\n"
+            "Chọn mức cược tại đây, Bot sẽ gửi lời mời vào Nhóm chung.\n"
+            "👇 <b>Chọn mức thách đấu:</b>"
+        )
+        
         # Mức cược PK: 10k, 20k, 50k, 100k
         kb = [
             [
@@ -230,6 +233,8 @@ async def handle_game_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
             ], 
             [InlineKeyboardButton("❌ Đóng", callback_data="close_menu")]
         ]
+        
+        # Sửa tin nhắn hiện tại thành Menu chọn tiền
         await query.edit_message_text(txt, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
         return
 
@@ -664,7 +669,23 @@ async def handle_admin_logic(update: Update, context: ContextTypes.DEFAULT_TYPE)
     db = SessionLocal()
     if text == "📋 Danh Sách NV":
         emps = db.query(Employee).all()
-        msg = "📋 <b>QUẢN LÝ NHÂN VIÊN</b>\n\n" + "".join([f"👤 {e.name} ({e.emoji}) | {e.balance:,.0f}đ\n👉 /tip_{e.telegram_id} | /fine_{e.telegram_id} | /del_{e.telegram_id}\n---\n" for e in emps]) if emps else "Chưa có NV."
+        
+        if not emps:
+            msg = "Chưa có nhân viên nào."
+        else:
+            msg = "📋 <b>QUẢN LÝ NHÂN VIÊN</b>\n"
+            for e in emps:
+                msg += (
+                    f"➖➖➖➖➖➖➖➖\n"
+                    f"👤 <b>{e.name}</b> ({e.emoji})\n"
+                    f"💰 Lương: {e.balance:,.0f}đ | 🪙 Xu: {e.coin:,.0f}\n"
+                    f"👉 Lương: /tip_{e.telegram_id} | /fine_{e.telegram_id}\n"
+                    f"👉 Xu:      /tipxu_{e.telegram_id} | /finex_{e.telegram_id}\n"
+                    f"🗑 Xóa:    /del_{e.telegram_id}\n"
+                )
+        if len(msg) > 4000: 
+            msg = msg[:4000] + "\n...(Danh sách quá dài, bị cắt bớt)"
+            
         await update.message.reply_text(msg, parse_mode="HTML")
     elif text == "📝 Xem Kho Review":
         reviews = db.query(Review).all()
@@ -798,6 +819,7 @@ def get_review():
         "Trà trái cây tươi mát, uống là nghiền. Sẽ quay lại!"
     ])
     return {"content": content}
+
 
 
 
