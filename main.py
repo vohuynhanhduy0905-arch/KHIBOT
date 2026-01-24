@@ -76,7 +76,7 @@ def get_main_menu():
     keyboard = [
         ["💳 Ví & Thẻ", "📅 Điểm Danh"],
         ["🎰 Giải Trí", "🛒 Shop Xu"],
-        ["⚡ Order Nhanh (Vào Nhóm)"] # Nút to nhất ở dưới
+        ["🏆 BXH Đại Gia", "🚀 Lấy mã QR"] # Thay hàng cuối bằng 2 nút này
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=False)
 
@@ -770,38 +770,29 @@ async def admin_dashboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("🔓 <b>MENU ADMIN</b>", reply_markup=reply_markup, parse_mode="HTML")
 
 async def handle_admin_logic(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # 1. Chặn spam trước
     if not await check_private(update, context): return
 
     text = update.message.text
-    user = update.effective_user
-    user_id = str(user.id)
+    user_id = str(update.effective_user.id)
 
-    # --- XỬ LÝ MENU CHÍNH (NHÂN VIÊN) ---
+    # Các nút Menu Nhân Viên
     if text == "💳 Ví & Thẻ":
-        await me_command(update, context) # Gọi hàm xem thẻ
+        await me_command(update, context)
         return
-        
     elif text == "📅 Điểm Danh":
-        await daily_command(update, context) # Gọi hàm điểm danh
+        await daily_command(update, context)
         return
-        
     elif text == "🛒 Shop Xu":
-        await shop_command(update, context) # Gọi hàm Shop
+        await shop_command(update, context)
         return
-        
     elif text == "🎰 Giải Trí":
-        await game_ui_command(update, context) # Gọi hàm Game
+        await game_ui_command(update, context)
         return
-
-    elif "Order Nhanh" in text:
-        # Gửi nút Link để bay sang nhóm
-        kb = [[InlineKeyboardButton("🚀 VÀO NHÓM ĐẶT MÓN", url=GROUP_INVITE_LINK)]]
-        await update.message.reply_text(
-            "📣 <b>CHUYỂN HƯỚNG ORDER</b>\n\nBạn muốn đặt món cho khách hoặc cho mình?\nQua nhóm chung để Order nhé!", 
-            reply_markup=InlineKeyboardMarkup(kb),
-            parse_mode="HTML"
-        )
+    elif text == "🏆 BXH Đại Gia": # Thêm xử lý nút BXH
+        await top_command(update, context)
+        return
+    elif text == "🚀 Lấy mã QR": # Thêm xử lý nút QR
+        await qr_command(update, context)
         return
 
     # --- XỬ LÝ MENU ADMIN (Chỉ Admin mới dùng được) ---
@@ -911,20 +902,23 @@ async def lifespan(app: FastAPI):
     await bot_app.initialize()
     await bot_app.start()
     
-    # Cài đặt Menu tự động
+    # 1. Xóa MenuButton cũ (nếu có) để quay về nút "Menu" mặc định
+    from telegram import MenuButtonCommands
+    await bot_app.bot.set_chat_menu_button(menu_button=MenuButtonCommands())
+
+    # 2. Cài đặt lại danh sách lệnh khi bấm vào nút Menu
     await bot_app.bot.set_my_commands([
+        BotCommand("start", "🏠 Về Menu chính"),
         BotCommand("me", "💳 Ví & Thẻ"),
-        BotCommand("diemdanh", "📅 Nhận 10k Xu"), # <--- Mới
-        BotCommand("shop", "🛒 Đổi quà"),          # <--- Mới
-        BotCommand("game", "🎰 Giải trí"),
+        BotCommand("game", "🎰 Chơi Game"),
+        BotCommand("diemdanh", "📅 Điểm danh"),
+        BotCommand("shop", "🛒 Shop quà"),
         BotCommand("qr", "🚀 Lấy mã QR"),
-        BotCommand("top", "🏆 BXH Đại gia"),
+        BotCommand("top", "🏆 BXH"),
     ])
     
-    #await bot_app.updater.start_polling()
     asyncio.create_task(bot_app.updater.start_polling())
-    
-    print("✅ Bot đã khởi động ngầm...")
+    print("✅ Bot đã khởi động với Menu chuẩn...")
     yield
     await bot_app.updater.stop()
     await bot_app.stop()
@@ -964,6 +958,7 @@ def get_review():
         "Trà trái cây tươi mát, uống là nghiền. Sẽ quay lại!"
     ])
     return {"content": content}
+
 
 
 
