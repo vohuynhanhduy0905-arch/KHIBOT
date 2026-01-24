@@ -539,13 +539,27 @@ async def me_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Chưa đăng ký. Bấm /start")
     
     db.close()
+    
 async def top_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     db = SessionLocal()
-    top = db.query(Employee).order_by(desc(Employee.balance)).limit(10).all()
-    msg = "🏆 BẢNG XẾP HẠNG 🏆\n"
-    for i, emp in enumerate(top, 1):
-        msg += f"{i}. {emp.name} ({emp.emoji}): {emp.balance:,.0f}đ\n"
-    await update.message.reply_text(msg)
+    
+    # Top 5 Đại Gia (Lương)
+    top_balance = db.query(Employee).order_by(desc(Employee.balance)).limit(5).all()
+    
+    # Top 5 Con Bạc (Xu) - MỚI
+    top_coin = db.query(Employee).order_by(desc(Employee.coin)).limit(5).all()
+    
+    msg = "🏆 <b>BẢNG PHONG THẦN</b> 🏆\n\n"
+    
+    msg += "💰 <b>TOP ĐẠI GIA (Lương):</b>\n"
+    for i, emp in enumerate(top_balance, 1):
+        msg += f"{i}. {emp.name}: {emp.balance:,.0f}đ\n"
+        
+    msg += "\n🪙 <b>TOP CON BẠC (Xu):</b>\n"
+    for i, emp in enumerate(top_coin, 1):
+        msg += f"{i}. {emp.name}: {emp.coin:,.0f} Xu\n"
+        
+    await update.message.reply_text(msg, parse_mode="HTML")
     db.close()
 
 async def qr_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -670,13 +684,29 @@ async def handle_admin_logic(update: Update, context: ContextTypes.DEFAULT_TYPE)
 async def quick_action_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if str(update.effective_user.id) != ADMIN_ID: return
     command = update.message.text 
-    action, target_id = command[1:].split('_') 
+    try:
+        action_part, target_id = command[1:].split('_')
+    except: return
+        
     db = SessionLocal()
     emp = db.query(Employee).filter(Employee.telegram_id == target_id).first()
     if emp:
-        if action == "tip": emp.balance += 5000; await update.message.reply_text(f"✅ Thưởng 5k {emp.name}.")
-        elif action == "fine": emp.balance -= 5000; await update.message.reply_text(f"✅ Phạt 5k {emp.name}.")
-        #elif action == "del": db.delete(emp); await update.message.reply_text(f"🗑 Đã xóa.")
+        # Xử lý Tiền thật
+        if action_part == "tip": 
+            emp.balance += 5000
+            await update.message.reply_text(f"✅ Thưởng nóng 5k lương cho {emp.name}.")
+        elif action_part == "fine": 
+            emp.balance -= 5000
+            await update.message.reply_text(f"🚫 Phạt 5k lương của {emp.name}.")
+            
+        # Xử lý Xu (MỚI) - Thưởng/Phạt 50k Xu một lần
+        elif action_part == "tipxu": 
+            emp.coin += 50000
+            await update.message.reply_text(f"✅ Buff 50k Xu cho {emp.name}.")
+        elif action_part == "finex": 
+            emp.coin -= 50000
+            await update.message.reply_text(f"🚫 Tịch thu 50k Xu của {emp.name}.")
+            
         db.commit()
     db.close()
 
@@ -701,7 +731,7 @@ bot_app.add_handler(CommandHandler("admin", admin_dashboard))
 bot_app.add_handler(CommandHandler("thong_bao", broadcast_command))
 bot_app.add_handler(CommandHandler("view_review", handle_admin_logic))
 bot_app.add_handler(CommandHandler("reset_review", handle_admin_logic))
-bot_app.add_handler(MessageHandler(filters.Regex(r"^/(tip|fine|del)_"), quick_action_handler))
+bot_app.add_handler(MessageHandler(filters.Regex(r"^/(tip|fine|del|tipxu|finex)_"), quick_action_handler))
 bot_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_admin_logic))
 bot_app.add_handler(CommandHandler("game", game_ui_command))     # Lệnh mở Menu
 bot_app.add_handler(CommandHandler("tx", game_ui_command))       # Lối tắt cho TX
@@ -768,6 +798,7 @@ def get_review():
         "Trà trái cây tươi mát, uống là nghiền. Sẽ quay lại!"
     ])
     return {"content": content}
+
 
 
 
