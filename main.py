@@ -3,6 +3,7 @@ import random
 import asyncio
 import io
 import time
+import json
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
@@ -11,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 # --- CẬP NHẬT IMPORT (Dòng 8-15) ---
 from telegram import (
     Update, ReplyKeyboardMarkup, ReplyKeyboardRemove, BotCommand, 
-    InlineKeyboardButton, InlineKeyboardMarkup, ChatPermissions
+    InlineKeyboardButton, InlineKeyboardMarkup, ChatPermissions, WebAppInfo
 )
 from telegram.ext import (
     Application, CommandHandler, MessageHandler, filters, ContextTypes, 
@@ -76,9 +77,9 @@ def get_main_menu():
     keyboard = [
         ["💳 Ví & Thẻ", "📅 Điểm Danh"],
         ["🎰 Giải Trí", "🛒 Shop Xu"],
-        ["🏆 BXH Đại Gia", "🚀 Lấy mã QR"] # Thay hàng cuối bằng 2 nút này
+        [KeyboardButton("🛒 POS ORDER", web_app=WebAppInfo(url=f"{WEB_URL}/webapp"))] # Nút mở WebApp
     ]
-    return ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=False)
+    return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
 # --- HÀM VẼ THẺ NHÂN VIÊN (ĐÃ SỬA LỖI) ---
 def create_card_image(name, emoji, balance, coin, avatar_bytes=None):
@@ -878,6 +879,43 @@ async def broadcast_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"✅ Đã gửi.")
         db.close()
 
+import json # Thêm vào đầu file main.py
+
+# --- HÀM XỬ LÝ DỮ LIỆU TỪ WEBAPP ---
+async def web_app_data_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Lấy dữ liệu JSON từ WebApp
+    data = json.loads(update.effective_message.web_app_data.data)
+    user = update.effective_user
+    
+    order_id = data.get("order_id")
+    customer = data.get("customer")
+    items = data.get("items")
+    total = data.get("total")
+
+    # Tạo nội dung hóa đơn
+    bill = f"🧾 <b>ĐƠN HÀNG MỚI #{order_id}</b>\n"
+    bill += f"👤 Nhân viên: {user.full_name}\n"
+    bill += f"👤 Khách hàng: {customer}\n"
+    bill += f"━━━━━━━━━━━━━━━━━━\n"
+    
+    for item in items:
+        bill += f"• <b>{item['name']}</b> x{item['qty']}\n"
+        if item['tops'].length > 0:
+            tops_str = ", ".join([t['name'] for t in item['tops']])
+            bill += f"   + Topping: {tops_str}\n"
+        if item['notes'].length > 0:
+            notes_str = ", ".join(item['notes'])
+            bill += f"   + Ghi chú: {notes_str}\n"
+    
+    bill += f"━━━━━━━━━━━━━━━━━━\n"
+    bill += f"💰 <b>TỔNG CỘNG: {total:,.0f}đ</b>"
+
+    # 1. Gửi vào nhóm Bếp (MAIN_GROUP_ID)
+    await context.bot.send_message(chat_id=MAIN_GROUP_ID, text=bill, parse_mode="HTML")
+    
+    # 2. Phản hồi cho nhân viên tại Chat riêng
+    await update.message.reply_text(f"✅ Đã gửi đơn #{order_id} vào bếp thành công!")
+
 # --- WEB & MAIN ---
 bot_app = Application.builder().token(TOKEN).build()
 bot_app.add_handler(CommandHandler("start", start_command))
@@ -896,6 +934,7 @@ bot_app.add_handler(CommandHandler("pk", game_ui_command))       # Lối tắt c
 bot_app.add_handler(CallbackQueryHandler(handle_game_buttons))   # Xử lý toàn bộ nút bấm
 bot_app.add_handler(CommandHandler("diemdanh", daily_command)) # <--- Mới
 bot_app.add_handler(CommandHandler("shop", shop_command))      # <--- Mới
+bot_app.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, web_app_data_handler))
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -958,6 +997,7 @@ def get_review():
         "Trà trái cây tươi mát, uống là nghiền. Sẽ quay lại!"
     ])
     return {"content": content}
+
 
 
 
