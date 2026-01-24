@@ -508,7 +508,10 @@ async def lifespan(app: FastAPI):
         BotCommand("top", "🏆 BXH Đại gia"),
     ])
     
-    await bot_app.updater.start_polling()
+    #await bot_app.updater.start_polling()
+    asyncio.create_task(bot_app.updater.start_polling())
+    
+    print("✅ Bot đã khởi động ngầm...")
     yield
     await bot_app.updater.stop()
     await bot_app.stop()
@@ -548,6 +551,7 @@ def get_review():
         "Trà trái cây tươi mát, uống là nghiền. Sẽ quay lại!"
     ])
     return {"content": content}
+
 
 
 
