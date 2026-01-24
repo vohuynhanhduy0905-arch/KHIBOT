@@ -25,6 +25,7 @@ from PIL import Image, ImageDraw, ImageFont
 TOKEN = os.environ.get("TELEGRAM_TOKEN") 
 ADMIN_ID = "1587932557"
 WEB_URL = "https://trasuakhi.onrender.com" 
+MAIN_GROUP_ID = -1003566594243
 
 # Setup
 init_db()
@@ -138,9 +139,23 @@ ACTIVE_PK_MATCHES = {}
 
 # --- HÀM HIỂN THỊ MENU GAME (ĐÃ BỔ SUNG LẠI) ---
 async def game_ui_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_type = update.effective_chat.type
     user = update.effective_user
-    msg = f"🎰 <b>TRUNG TÂM GIẢI TRÍ</b> 🎰\nChào <b>{user.full_name}</b>, bạn muốn chơi gì?"
+    
+    # 1. Nếu chat trong nhóm -> Xóa tin nhắn và cảnh báo nhẹ
+    if chat_type != "private":
+        try: await update.message.delete() # Xóa lệnh /game của user
+        except: pass
+        
+        # Gửi cảnh báo tự xóa sau 5s
+        msg = await update.message.reply_text(f"⚠️ {user.first_name} ơi, qua nhắn riêng với Bot để chơi nhé!")
+        await asyncio.sleep(5)
+        try: await msg.delete()
+        except: pass
+        return
 
+    # 2. Nếu là chat riêng -> Hiện Menu
+    msg = f"🎰 <b>TRUNG TÂM GIẢI TRÍ</b> 🎰\nChào <b>{user.full_name}</b>, đại gia muốn chơi gì?"
     keyboard = [
         [
             InlineKeyboardButton("🎲 TÀI XỈU (Solo)", callback_data="menu_tx"),
@@ -148,11 +163,7 @@ async def game_ui_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ],
         [InlineKeyboardButton("❌ Đóng Menu", callback_data="close_menu")]
     ]
-    
-    if update.callback_query:
-        await update.callback_query.edit_message_text(msg, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
-    else:
-        await update.message.reply_text(msg, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+    await update.message.reply_text(msg, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
 
 # --- HÀM XỬ LÝ NÚT BẤM (ĐÃ SỬA LỖI PK IM LẶNG) ---
 async def handle_game_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -212,15 +223,14 @@ async def handle_game_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
     if data.startswith("tx_chon_"):
         choice = "XỈU" if "xiu" in data else "TÀI"
         code = "xiu" if "xiu" in data else "tai"
-        txt = f"Bạn chọn: <b>{choice}</b>\n💰 Cược bao nhiêu:"
+        txt = f"Bạn chọn: <b>{choice}</b>\n💰 Cược nhiu ní:"
         kb = [[InlineKeyboardButton("1k", callback_data=f"tx_play_{code}_1000"), InlineKeyboardButton("2k", callback_data=f"tx_play_{code}_2000"), InlineKeyboardButton("5k", callback_data=f"tx_play_{code}_5000"), InlineKeyboardButton("10k", callback_data=f"tx_play_{code}_10000")], [InlineKeyboardButton("🔙 Chọn lại", callback_data="menu_tx")]]
         await query.edit_message_text(txt, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
         return
 
-    # --- PHẦN TÀI XỈU MỚI (CÓ XÓA TIN NHẮN) ---
     if data.startswith("tx_play_"):
         try:
-            # 1. Xóa Menu cũ ngay lập tức cho gọn (Yêu cầu 3)
+            # Xóa menu cũ
             try: await query.message.delete()
             except: pass
 
@@ -230,85 +240,94 @@ async def handle_game_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
             db = SessionLocal()
             emp = db.query(Employee).filter(Employee.telegram_id == str(user.id)).first()
             
-            if not emp: await context.bot.send_message(user.id, "⚠️ Chưa đăng ký!"); db.close(); return
-            if emp.balance < amount: await context.bot.send_message(user.id, "💸 Không đủ tiền!"); db.close(); return
+            if not emp or emp.balance < amount: 
+                await context.bot.send_message(user.id, "💸 Không đủ tiền!")
+                db.close(); return
 
-            # Trừ tiền
             emp.balance -= amount
             db.commit()
 
-            # 2. Gửi tin nhắn chờ & Tung 3 xúc xắc thật
-            msg_wait = await context.bot.send_message(chat_id=query.message.chat_id, text=f"🎲 Đang tung xúc xắc cược {amount:,.0f}đ...")
-            
-            # Tung 3 con xúc xắc (Lưu lại tin nhắn vào biến m1, m2, m3 để tí xóa)
+            # Tung xúc xắc
+            msg_wait = await context.bot.send_message(chat_id=query.message.chat_id, text=f"🎲 Đang tung ({amount:,.0f}đ)...")
             m1 = await context.bot.send_dice(chat_id=query.message.chat_id)
             m2 = await context.bot.send_dice(chat_id=query.message.chat_id)
             m3 = await context.bot.send_dice(chat_id=query.message.chat_id)
             
-            # Tính toán kết quả
             d1, d2, d3 = m1.dice.value, m2.dice.value, m3.dice.value
             total = d1 + d2 + d3
             result_str = "XỈU" if total <= 10 else "TÀI"
 
-            # Đợi hiệu ứng quay (3.5 giây)
-            await asyncio.sleep(3.5)
+            await asyncio.sleep(3.5) # Chờ quay
             
+            # Tính toán
             is_win = False
-            note = ""
-            if d1 == d2 == d3: 
-                is_win = False; note = f"⛈️ <b>BÃO {d1}! (Nhà cái ăn hết)</b>"
+            if d1 == d2 == d3: note = f"⛈️ <b>BÃO {d1}! (Thua sạch)</b>"
             elif (choice_code == "xiu" and total <= 10) or (choice_code == "tai" and total > 10):
-                is_win = True
                 profit = int(amount * 0.85)
                 emp.balance += (amount + profit)
                 note = f"✅ <b>THẮNG!</b> (+{profit:,.0f}đ)"
-            else: 
-                note = f"❌ <b>THUA!</b> (-{amount:,.0f}đ)"
-                
-            db.commit()
+            else: note = f"❌ <b>THUA!</b> (-{amount:,.0f}đ)"
             
-            # 3. Gửi KẾT QUẢ CUỐI CÙNG (Tin nhắn này sẽ ĐƯỢC GIỮ LẠI)
-            final_msg = f"📊 Kết quả: [{d1}] [{d2}] [{d3}] = <b>{total}</b> ({result_str})\n━━━━━━━━━━━━━━\n{note}\n💰 Ví còn: {emp.balance:,.0f}đ"
+            db.commit()
+
+            # Gửi kết quả
+            final_msg = f"📊 Kết quả: [{d1}] [{d2}] [{d3}] = <b>{total}</b> ({result_str})\n{note}\n💰 Ví: {emp.balance:,.0f}đ"
             kb = [[InlineKeyboardButton("🔄 Chơi tiếp", callback_data="menu_tx")]]
             await context.bot.send_message(chat_id=query.message.chat_id, text=final_msg, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
 
-            # 4. Yêu cầu 1: Đợi 5 giây rồi xóa rác (Xúc xắc + Tin nhắn chờ)
-            await asyncio.sleep(5)
+            # --- XÓA XÚC XẮC NGAY LẬP TỨC ---
             for m in [msg_wait, m1, m2, m3]:
-                try: await context.bot.delete_message(chat_id=m.chat_id, message_id=m.message_id)
+                try: await m.delete()
                 except: pass
 
-        except Exception as e: print(f"Lỗi TX: {e}")
+        except Exception as e: print(e)
         finally: db.close()
         return
 
-    # --- NHÓM 3: PK (ĐÃ SỬA LỖI EDIT PHOTO) ---
+    # --- LOGIC TẠO KÈO (Người chơi bấm ở Chat Riêng -> Bot gửi vào Nhóm) ---
     if data.startswith("pk_create_"):
         amount = int(data.split("_")[-1])
         db = SessionLocal()
         emp = db.query(Employee).filter(Employee.telegram_id == str(user.id)).first()
-        if not emp or emp.balance < amount: await query.answer("💸 Tiền đâu mà thách?", show_alert=True); db.close(); return
+        
+        # Kiểm tra tiền
+        if not emp or emp.balance < amount: 
+            await query.answer("💸 Không đủ tiền!", show_alert=True)
+            db.close(); return
             
-        await query.delete_message()
-        kb = [[InlineKeyboardButton("🥊 NHẬN KÈO NGAY", callback_data="pk_join")]]
-        msg_content = f"🔥 <b>PK THÁCH ĐẤU</b> 🔥\n\n👤 <b>{emp.name}</b> muốn solo!\n💰 Cược: <b>{amount:,.0f}đ</b>\n👇 <i>Ai dám nhận không?</i>"
+        # 1. Báo thành công ở chat riêng
+        await query.edit_message_text(f"✅ Đã gửi lời thách đấu <b>{amount:,.0f}đ</b> vào nhóm!", parse_mode="HTML")
 
+        # 2. Gửi Lời mời vào NHÓM CHUNG (MAIN_GROUP_ID)
+        kb = [[InlineKeyboardButton("🥊 NHẬN KÈO NGAY", callback_data="pk_join")]]
+        msg_content = (
+            f"🔥 <b>PK THÁCH ĐẤU</b> 🔥\n"
+            f"👤 <b>{emp.name}</b> đang tìm đối thủ!\n"
+            f"💰 Cược: <b>{amount:,.0f}đ</b>\n"
+            f"👇 <i>Ai dám nhận không?</i>"
+        )
         try:
-            if os.path.exists("static/pk_invite.jpg"):
-                sent_msg = await context.bot.send_photo(chat_id=query.message.chat_id, photo=open("static/pk_invite.jpg", "rb"), caption=msg_content, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
-            else:
-                sent_msg = await context.bot.send_message(chat_id=query.message.chat_id, text=msg_content, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
-            ACTIVE_PK_MATCHES[sent_msg.message_id] = {"creator_id": str(user.id), "creator_name": emp.name, "amount": amount}
-        except Exception as e: print(f"Lỗi PK: {e}")
+            # Gửi tin nhắn vào nhóm
+            sent_msg = await context.bot.send_message(chat_id=MAIN_GROUP_ID, text=msg_content, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
+            
+            # Lưu thông tin kèo
+            ACTIVE_PK_MATCHES[sent_msg.message_id] = {
+                "creator_id": str(user.id), 
+                "creator_name": emp.name, 
+                "amount": amount
+            }
+        except Exception as e:
+            await context.bot.send_message(user.id, f"⚠️ Lỗi: Chưa thêm Bot vào nhóm hoặc sai ID nhóm!\n({e})")
+
         db.close(); return
 
-    # --- PHẦN PK MỚI (CÓ XÓA TIN NHẮN) ---
+    # --- LOGIC NHẬN KÈO (Người khác bấm ở Nhóm -> Chơi -> Xóa -> Báo riêng) ---
     if data == "pk_join":
-        invite_msg_id = query.message.message_id # Lưu ID lời mời để tí xóa
-        chat_id = query.message.chat_id
-
+        invite_msg_id = query.message.message_id
+        group_chat_id = query.message.chat_id # Đây chính là ID nhóm
+        
         match_info = ACTIVE_PK_MATCHES.get(invite_msg_id)
-        if not match_info: await query.answer("❌ Kèo đã xong!", show_alert=True); return
+        if not match_info: await query.answer("❌ Kèo đã hủy hoặc có người nhận rồi!", show_alert=True); return
             
         challenger_id = str(user.id)
         creator_id = match_info["creator_id"]
@@ -317,8 +336,8 @@ async def handle_game_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
         if challenger_id == creator_id: await query.answer("🚫 Đừng tự chơi với mình!", show_alert=True); return
             
         db = SessionLocal()
-        p1 = db.query(Employee).filter(Employee.telegram_id == creator_id).first()
-        p2 = db.query(Employee).filter(Employee.telegram_id == challenger_id).first()
+        p1 = db.query(Employee).filter(Employee.telegram_id == creator_id).first() # Chủ kèo
+        p2 = db.query(Employee).filter(Employee.telegram_id == challenger_id).first() # Người nhận
         
         if not p2 or p2.balance < amount: await query.answer("💸 Bạn không đủ tiền!", show_alert=True); db.close(); return
         if p1.balance < amount: await query.answer("❌ Chủ kèo hết tiền!", show_alert=True); db.close(); return
@@ -327,41 +346,56 @@ async def handle_game_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
         p1.balance -= amount; p2.balance -= amount
         db.commit()
 
-        # Thông báo bắt đầu (Tạm thời)
-        start_msg = await context.bot.send_message(chat_id=chat_id, text=f"🥊 <b>{match_info['creator_name']}</b> VS <b>{p2.name}</b>\n🎲 Đang tung xúc xắc...", parse_mode="HTML")
+        # Xóa kèo khỏi danh sách để không ai bấm nữa
+        if invite_msg_id in ACTIVE_PK_MATCHES: del ACTIVE_PK_MATCHES[invite_msg_id]
 
-        # Tung xúc xắc P1
-        m1 = await context.bot.send_dice(chat_id=chat_id)
+        # 1. Bắt đầu tung xúc xắc TẠI NHÓM (Cho mọi người xem)
+        start_msg = await context.bot.send_message(group_chat_id, f"🥊 <b>TRẬN ĐẤU BẮT ĐẦU!</b>\n🔴 {match_info['creator_name']} VS 🔵 {p2.name}", parse_mode="HTML")
+        
+        m1 = await context.bot.send_dice(group_chat_id) # P1 tung
         d1 = m1.dice.value
-        await asyncio.sleep(2) 
-
-        # Tung xúc xắc P2
-        m2 = await context.bot.send_dice(chat_id=chat_id)
+        await asyncio.sleep(2)
+        
+        m2 = await context.bot.send_dice(group_chat_id) # P2 tung
         d2 = m2.dice.value
-        await asyncio.sleep(3.5) # Đợi quay xong
+        await asyncio.sleep(3.5)
 
-        # Tính kết quả
+        # 2. Tính kết quả
         total_pot = amount * 2; fee = int(total_pot * 0.05); prize = total_pot - fee
         result_txt = f"🥊 <b>KẾT QUẢ PK</b> ({amount:,.0f}đ)\n"
+        winner_id = None
         
         if d1 > d2: 
-            p1.balance += prize; result_txt += f"👤 {match_info['creator_name']}: {d1} 🏆 <b>THẮNG</b>\n👤 {p2.name}: {d2}\n💰 +{prize:,.0f}đ"
+            p1.balance += prize; winner_id = p1.telegram_id
+            result_txt += f"🔴 {match_info['creator_name']}: {d1} 🏆 <b>THẮNG</b>\n🔵 {p2.name}: {d2}\n💰 +{prize:,.0f}đ"
         elif d2 > d1: 
-            p2.balance += prize; result_txt += f"👤 {match_info['creator_name']}: {d1}\n👤 {p2.name}: {d2} 🏆 <b>THẮNG</b>\n💰 +{prize:,.0f}đ"
+            p2.balance += prize; winner_id = p2.telegram_id
+            result_txt += f"🔴 {match_info['creator_name']}: {d1}\n🔵 {p2.name}: {d2} 🏆 <b>THẮNG</b>\n💰 +{prize:,.0f}đ"
         else: 
-            p1.balance += amount; p2.balance += amount; result_txt += f"👤 {match_info['creator_name']}: {d1}\n👤 {p2.name}: {d2}\n🤝 <b>HÒA!</b> Hoàn tiền."
+            p1.balance += amount; p2.balance += amount
+            result_txt += f"🔴 {match_info['creator_name']}: {d1}\n🔵 {p2.name}: {d2}\n🤝 <b>HÒA!</b> Hoàn tiền."
 
         db.commit()
-        if invite_msg_id in ACTIVE_PK_MATCHES: del ACTIVE_PK_MATCHES[invite_msg_id]
         
-        # Gửi kết quả cuối cùng
-        await context.bot.send_message(chat_id=chat_id, text=result_txt, parse_mode="HTML")
+        # 3. Hiện kết quả tại NHÓM
+        result_msg = await context.bot.send_message(group_chat_id, result_txt, parse_mode="HTML")
         
-        # Yêu cầu 2: XÓA NGAY LẬP TỨC (Lời mời + Thông báo start + Xúc xắc 1 + Xúc xắc 2)
-        for mid in [invite_msg_id, start_msg.message_id, m1.message_id, m2.message_id]:
-            try: await context.bot.delete_message(chat_id=chat_id, message_id=mid)
-            except: pass
+        # 4. Gửi kết quả RIÊNG TƯ về bot cho 2 người chơi (Để lưu lại bằng chứng)
+        private_log = f"{result_txt}\n➖➖➖➖➖➖\n💰 Số dư hiện tại: "
+        try: await context.bot.send_message(creator_id, private_log + f"{p1.balance:,.0f}đ", parse_mode="HTML")
+        except: pass # Phòng trường hợp user block bot
+        
+        try: await context.bot.send_message(challenger_id, private_log + f"{p2.balance:,.0f}đ", parse_mode="HTML")
+        except: pass
 
+        # 5. Đợi 10 giây rồi XÓA SẠCH ở nhóm (Yêu cầu của bạn)
+        await asyncio.sleep(10)
+        messages_to_delete = [invite_msg_id, start_msg.message_id, m1.message_id, m2.message_id, result_msg.message_id]
+        
+        for mid in messages_to_delete:
+            try: await context.bot.delete_message(chat_id=group_chat_id, message_id=mid)
+            except: pass
+            
         db.close()
         return
 
@@ -608,6 +642,7 @@ def get_review():
         "Trà trái cây tươi mát, uống là nghiền. Sẽ quay lại!"
     ])
     return {"content": content}
+
 
 
 
