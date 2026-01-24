@@ -370,6 +370,7 @@ async def handle_game_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
 
     # --- LOGIC TẠO KÈO (Người chơi bấm ở Chat Riêng -> Bot gửi vào Nhóm) ---
+    # --- TÌM VÀ THAY THẾ ĐOẠN pk_create_ BẰNG ĐOẠN NÀY ---
     if data.startswith("pk_create_"):
         amount = int(data.split("_")[-1])
         db = SessionLocal()
@@ -382,7 +383,7 @@ async def handle_game_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
             
         await query.edit_message_text(f"✅ Đã gửi lời thách đấu <b>{amount:,.0f} Xu</b> vào nhóm!", parse_mode="HTML")
 
-        # Gửi vào nhóm
+        # Nội dung tin nhắn (Caption)
         kb = [[InlineKeyboardButton("🥊 NHẬN KÈO NGAY", callback_data="pk_join")]]
         msg_content = (
             f"🔥 <b>PK THÁCH ĐẤU (XU)</b> 🔥\n"
@@ -390,15 +391,29 @@ async def handle_game_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
             f"🪙 Cược: <b>{amount:,.0f} Xu</b>\n"
             f"👇 <i>Ai dám nhận không?</i>"
         )
+
         try:
-            sent_msg = await context.bot.send_message(chat_id=MAIN_GROUP_ID, text=msg_content, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
+            # --- SỬA ĐOẠN NÀY: DÙNG send_photo THAY VÌ send_message ---
+            # Mở file ảnh từ thư mục static (Nhớ đảm bảo tên file đúng y chang)
+            photo_file = open("static/pk_invite.jpg", "rb")
+            
+            sent_msg = await context.bot.send_photo(
+                chat_id=MAIN_GROUP_ID,
+                photo=photo_file,       # File ảnh
+                caption=msg_content,    # Nội dung chữ
+                reply_markup=InlineKeyboardMarkup(kb),
+                parse_mode="HTML"
+            )
+            # -----------------------------------------------------------
+
             ACTIVE_PK_MATCHES[sent_msg.message_id] = {
                 "creator_id": str(user.id), 
                 "creator_name": emp.name, 
                 "amount": amount
             }
         except Exception as e:
-            await context.bot.send_message(user.id, f"⚠️ Lỗi: Chưa thêm Bot vào nhóm!\n({e})")
+            # Nếu lỗi (ví dụ quên up ảnh), bot sẽ báo về cho người tạo
+            await context.bot.send_message(user.id, f"⚠️ Lỗi: Có thể chưa thêm Bot vào nhóm hoặc thiếu file ảnh!\n({e})")
 
         db.close(); return
         
@@ -949,6 +964,7 @@ def get_review():
         "Trà trái cây tươi mát, uống là nghiền. Sẽ quay lại!"
     ])
     return {"content": content}
+
 
 
 
