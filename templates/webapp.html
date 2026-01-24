@@ -126,24 +126,49 @@
     const tg = window.Telegram.WebApp;
     tg.expand();
 
-    // --- DATA ---
     const categories = [
         { id: 'trasua', name: 'Trà Sữa' },
         { id: 'traicay', name: 'Trà Trái Cây' },
         { id: 'macchiato', name: 'Macchiato' },
-        { id: 'anvat', name: 'Ăn Vặt' }
+        { id: 'dacbiet', name: 'Đặc Biệt/Latte' }
     ];
 
     const products = [
-        { id: 1, cat: 'trasua', name: 'Truyền Thống', price: 25000, img: 'https://via.placeholder.com/60/795548/fff?text=TS' },
-        { id: 2, cat: 'trasua', name: 'Matcha', price: 25000, img: 'https://via.placeholder.com/60/2ecc71/fff?text=Matcha' },
-        { id: 3, cat: 'trasua', name: 'Socola', price: 25000, img: 'https://via.placeholder.com/60/5d4037/fff?text=Socola' },
-        { id: 4, cat: 'traicay', name: 'Trà Lài Đác Thơm', price: 27000, img: 'https://via.placeholder.com/60/f1c40f/fff?text=DacThom' },
-        { id: 5, cat: 'traicay', name: 'Trà Ổi Hồng', price: 27000, img: 'https://via.placeholder.com/60/e91e63/fff?text=Oi' },
+        // TRÀ SỮA (25K)
+        { id: 1, cat: 'trasua', name: 'TS Truyền Thống', price: 25000, img: 'https://img.icons8.com/emoji/96/bubble-tea-emoji.png' },
+        { id: 2, cat: 'trasua', name: 'TS Matcha', price: 25000, img: 'https://img.icons8.com/emoji/96/bubble-tea-emoji.png' },
+        { id: 3, cat: 'trasua', name: 'TS Caramel', price: 25000, img: 'https://img.icons8.com/emoji/96/bubble-tea-emoji.png' },
+        { id: 4, cat: 'trasua', name: 'TS Ô Long', price: 25000, img: 'https://img.icons8.com/emoji/96/bubble-tea-emoji.png' },
+        { id: 5, cat: 'trasua', name: 'TS Chocolate', price: 25000, img: 'https://img.icons8.com/emoji/96/bubble-tea-emoji.png' },
+        { id: 6, cat: 'trasua', name: 'TS Đào', price: 25000, img: 'https://img.icons8.com/emoji/96/bubble-tea-emoji.png' },
+
+        // TRÀ TRÁI CÂY (27K)
+        { id: 10, cat: 'traicay', name: 'Trà Đác Dâu Tằm', price: 27000, img: 'https://img.icons8.com/emoji/96/tropical-drink.png' },
+        { id: 11, cat: 'traicay', name: 'Trà Đác Thơm', price: 27000, img: 'https://img.icons8.com/emoji/96/tropical-drink.png' },
+        { id: 12, cat: 'traicay', name: 'Trà Ổi Hồng', price: 27000, img: 'https://img.icons8.com/emoji/96/tropical-drink.png' },
+        { id: 13, cat: 'traicay', name: 'Trà Nhiệt Đới', price: 27000, img: 'https://img.icons8.com/emoji/96/tropical-drink.png' },
+        { id: 14, cat: 'traicay', name: 'Trà Táo Xanh', price: 27000, img: 'https://img.icons8.com/emoji/96/tropical-drink.png' },
+        { id: 15, cat: 'traicay', name: 'Trà Dưa Lưới', price: 27000, img: 'https://img.icons8.com/emoji/96/tropical-drink.png' },
+        { id: 16, cat: 'traicay', name: 'Trà Mãng Cầu', price: 27000, img: 'https://img.icons8.com/emoji/96/tropical-drink.png' },
+        { id: 17, cat: 'traicay', name: 'Trà Cóc Hạt Đác', price: 27000, img: 'https://img.icons8.com/emoji/96/tropical-drink.png' },
+
+        // MACCHIATO (25K)
+        { id: 20, cat: 'macchiato', name: 'Trà Đào Macchiato', price: 25000, img: 'https://img.icons8.com/emoji/96/beverage-box-emoji.png' },
+        { id: 21, cat: 'macchiato', name: 'Trà Dâu Macchiato', price: 25000, img: 'https://img.icons8.com/emoji/96/beverage-box-emoji.png' },
+        { id: 22, cat: 'macchiato', name: 'Trà Vải Macchiato', price: 25000, img: 'https://img.icons8.com/emoji/96/beverage-box-emoji.png' },
+        { id: 23, cat: 'macchiato', name: 'Hồng Trà Macchiato', price: 25000, img: 'https://img.icons8.com/emoji/96/beverage-box-emoji.png' },
+        { id: 24, cat: 'macchiato', name: 'Trà Ô Long Macchiato', price: 25000, img: 'https://img.icons8.com/emoji/96/beverage-box-emoji.png' },
+        { id: 25, cat: 'macchiato', name: 'Trà Sen Macchiato', price: 25000, img: 'https://img.icons8.com/emoji/96/beverage-box-emoji.png' },
+
+        // ĐẶC BIỆT / LATTE
+        { id: 30, cat: 'dacbiet', name: 'Trà Sủi', price: 25000, img: 'https://img.icons8.com/emoji/96/glass-of-milk.png' },
+        { id: 31, cat: 'dacbiet', name: 'Sữa Tươi Trân Châu ĐĐ', price: 27000, img: 'https://img.icons8.com/emoji/96/glass-of-milk.png' },
+        { id: 32, cat: 'dacbiet', name: 'Hồng Trà Latte', price: 27000, img: 'https://img.icons8.com/emoji/96/glass-of-milk.png' },
+        { id: 33, cat: 'dacbiet', name: 'Matcha Latte', price: 27000, img: 'https://img.icons8.com/emoji/96/glass-of-milk.png' },
     ];
 
-    const topping5k = ["Trân châu đen", "Trân châu trắng", "Củ năng", "Phô mai", "Rau câu", "Khúc bạch", "Sương sáo", "Bánh Flan", "Khoai dẻo"];
-    const topping10k = ["Đác thơm", "Đác dâu tằm", "Mãng cầu", "Dưa lưới", "Táo xanh", "Mít thái"];
+    const topping5k = ["Trân Châu", "Củ Năng", "Phô Mai", "Rau Câu", "Khúc Bạch", "Sương Sáo", "Thạch Đào", "Flan Trứng", "Ngọc Trai", "Khoai Dẻo"];
+    const topping10k = ["Đác Thơm", "Đác Dâu Tằm", "Trái Cây Nhiệt Đới", "Táo Xanh", "Dưa Lưới", "Ổi Hồng", "Mãng Cầu"];
 
     let cart = [];
     let currentItem = null;
