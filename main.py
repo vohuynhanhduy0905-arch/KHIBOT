@@ -136,35 +136,17 @@ def create_card_image(name, emoji, balance, avatar_bytes=None):
 # --- LOGIC GAME & NÚT BẤM ---
 ACTIVE_PK_MATCHES = {} # Lưu trữ các kèo PK đang treo
 
-# 1. Hàm hiển thị Menu Game (Chạy khi gõ /game hoặc bấm nút)
-async def game_ui_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    chat_type = update.effective_chat.type
-    
-    # Text chào mừng
-    msg = f"🎰 <b>TRUNG TÂM GIẢI TRÍ</b> 🎰\nChào <b>{user.full_name}</b>, bạn muốn chơi gì?"
-
-    # Tạo hàng nút bấm
-    keyboard = [
-        [
-            InlineKeyboardButton("🎲 TÀI XỈU (Solo)", callback_data="menu_tx"),
-            InlineKeyboardButton("🥊 ĐẤU PK (Solo)", callback_data="menu_pk")
-        ],
-        [InlineKeyboardButton("❌ Đóng Menu", callback_data="close_menu")]
-    ]
-    
-    # Nếu gọi từ tin nhắn (Update) hoặc nút bấm (CallbackQuery)
-    if update.callback_query:
-        await update.callback_query.edit_message_text(msg, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
-    else:
-        await update.message.reply_text(msg, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
-
-# 2. Bộ xử lý trung tâm cho tất cả nút bấm
+# --- CẬP NHẬT HÀM XỬ LÝ NÚT BẤM (Thay thế hàm cũ) ---
 async def handle_game_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user = query.from_user
     data = query.data
-    chat_type = query.message.chat.type # 'private' hoặc 'group'/'supergroup'
+    chat_type = query.message.chat.type 
+
+    # Luôn trả lời query trước để tránh nút bị xoay vô tận
+    try:
+        await query.answer() 
+    except: pass
 
     # --- NHÓM 1: ĐIỀU HƯỚNG MENU ---
     if data == "close_menu":
@@ -172,20 +154,22 @@ async def handle_game_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
 
     if data == "menu_tx":
-        # Luật: Tài Xỉu phải chơi Inbox
+        # Menu Tài Xỉu
         if chat_type != "private":
             url = f"t.me/{context.bot.username}?start=game"
-            await query.answer("⚠️ Qua bot chơi cho kín đáo nha!", show_alert=True)
+            await context.bot.send_message(
+                chat_id=query.message.chat_id,
+                text="⚠️ Game này qua nhắn riêng với Bot chơi nhé!",
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("👉 Chuyển qua Inbox", url=url)]])
+            )
             return
 
-        # Hiển thị Menu Tài Xỉu
         txt = (
             "🎲 <b>TÀI XỈU SIÊU TỐC</b>\n"
             "━━━━━━━━━━━━━━━━\n"
             "🔴 <b>XỈU:</b> 3 - 10 điểm\n"
             "🔵 <b>TÀI:</b> 11 - 18 điểm\n"
-            "⚡ <b>Tỉ lệ ăn:</b> 1 ăn 0.85 (Cược 10k ăn 8.5k)\n"
-            "🚫 <b>Max cược:</b> 10.000đ/ván\n"
+            "⚡ <b>Tỉ lệ ăn:</b> 1 ăn 0.85\n"
             "⚠️ <b>Bão (3 số giống nhau):</b> Nhà cái ăn hết!"
         )
         kb = [
@@ -199,7 +183,7 @@ async def handle_game_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
 
     if data == "menu_pk":
-        # Luật: PK phải chơi ở Group
+        # Menu PK
         if chat_type == "private":
             await query.edit_message_text(
                 "🥊 <b>GAME ĐỐI KHÁNG</b>\n"
@@ -208,19 +192,15 @@ async def handle_game_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
             , parse_mode="HTML")
             return
             
-        # Hiển thị Menu PK
         txt = (
             "🥊 <b>SÀN ĐẤU PK 1vs1</b>\n"
-            "━━━━━━━━━━━━━━━━\n"
-            "Cả 2 cùng bỏ tiền vào, ai điểm cao hơn ăn tất.\n"
-            "💸 <b>Phí trọng tài:</b> 5% (Người thắng trả)\n"
+            "Tiền cược sẽ bị trừ ngay khi tạo kèo.\n"
             "👇 <b>Chọn mức tiền thách đấu:</b>"
         )
         kb = [
             [
                 InlineKeyboardButton("⚡ 2k", callback_data="pk_create_2000"),
-                InlineKeyboardButton("⚡ 4k", callback_data="pk_create_4000"),
-                InlineKeyboardButton("⚡ 6k", callback_data="pk_create_6000"),
+                InlineKeyboardButton("⚡ 5k", callback_data="pk_create_5000"),
                 InlineKeyboardButton("⚡ 10k", callback_data="pk_create_10000"),
                 InlineKeyboardButton("⚡ 20k", callback_data="pk_create_20000")
             ],
@@ -233,124 +213,133 @@ async def handle_game_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
         await game_ui_command(update, context)
         return
 
-    # --- NHÓM 2: XỬ LÝ TÀI XỈU ---
+    # --- NHÓM 2: CHỌN CỬA TÀI XỈU ---
     if data.startswith("tx_chon_"):
         choice = "XỈU" if "xiu" in data else "TÀI"
         code = "xiu" if "xiu" in data else "tai"
         
-        txt = f"Bạn chọn: <b>{choice}</b>\n💰 Chọn số tiền muốn cược:"
+        txt = f"Bạn đang chọn: <b>{choice}</b>\n💰 Chọn số tiền cược:"
         kb = [
             [
-                InlineKeyboardButton("💵 1.000đ", callback_data=f"tx_play_{code}_1000"),
-                InlineKeyboardButton("💵 2.000đ", callback_data=f"tx_play_{code}_2000"),
-                InlineKeyboardButton("💵 3.000đ", callback_data=f"tx_play_{code}_3000"),
-                InlineKeyboardButton("💵 5.000đ", callback_data=f"tx_play_{code}_5000")
-            ],
-            [
-                InlineKeyboardButton("💎 10.000đ (Max)", callback_data=f"tx_play_{code}_10000")
+                InlineKeyboardButton("1k", callback_data=f"tx_play_{code}_1000"),
+                InlineKeyboardButton("2k", callback_data=f"tx_play_{code}_2000"),
+                InlineKeyboardButton("5k", callback_data=f"tx_play_{code}_5000"),
+                InlineKeyboardButton("10k", callback_data=f"tx_play_{code}_10000")
             ],
             [InlineKeyboardButton("🔙 Chọn lại", callback_data="menu_tx")]
         ]
         await query.edit_message_text(txt, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
         return
 
+    # --- NHÓM 3: XỬ LÝ CHƠI TÀI XỈU (QUAN TRỌNG) ---
     if data.startswith("tx_play_"):
-        _, _, choice_code, amount_str = data.split("_")
-        amount = int(amount_str)
-        
-        db = SessionLocal()
-        emp = db.query(Employee).filter(Employee.telegram_id == str(user.id)).first()
-        
-        # Kiểm tra tiền
-        if not emp or emp.balance < amount:
-            await query.answer("💸 Không đủ tiền!", show_alert=True)
-            db.close(); return
-
-        # Trừ tiền cược
-        emp.balance -= amount
-        
-        # Lắc xúc xắc
-        d1, d2, d3 = random.randint(1,6), random.randint(1,6), random.randint(1,6)
-        total = d1 + d2 + d3
-        result_str = "XỈU" if total <= 10 else "TÀI"
-        
-        # Logic tính thắng thua
-        is_win = False
-        note = ""
-        
-        if d1 == d2 == d3: # Bão
-            is_win = False
-            note = "⛈️ <b>BÃO! (Nhà cái ăn hết)</b>"
-        elif (choice_code == "xiu" and total <= 10) or (choice_code == "tai" and total > 10):
-            is_win = True
-            profit = int(amount * 0.85)
-            total_return = amount + profit
-            emp.balance += total_return
-            note = f"✅ <b>THẮNG!</b> (+{profit:,.0f}đ)"
-        else:
-            note = f"❌ <b>THUA!</b> (-{amount:,.0f}đ)"
+        try:
+            # Tách dữ liệu: tx_play_tai_1000 -> ['tx', 'play', 'tai', '1000']
+            parts = data.split("_")
+            choice_code = parts[2]
+            amount = int(parts[3])
             
-        db.commit()
-        db.close()
-        
-        # Hiển thị kết quả
-        final_msg = (
-            f"🎲 <b>KẾT QUẢ:</b> [{d1}] [{d2}] [{d3}] = <b>{total}</b> ({result_str})\n"
-            f"Bạn cược: {choice_code.upper()} - {amount:,.0f}đ\n"
-            f"━━━━━━━━━━━━━━\n"
-            f"{note}\n"
-            f"💰 Ví còn: {emp.balance:,.0f}đ"
-        )
-        kb = [[InlineKeyboardButton("🔄 Chơi tiếp", callback_data="menu_tx")]]
-        await query.edit_message_text(final_msg, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
+            db = SessionLocal()
+            emp = db.query(Employee).filter(Employee.telegram_id == str(user.id)).first()
+            
+            # 1. Kiểm tra tài khoản
+            if not emp:
+                await query.answer("⚠️ Bạn chưa đăng ký! Gõ /start đi.", show_alert=True)
+                db.close(); return
+
+            if emp.balance < amount:
+                await query.answer("💸 Không đủ tiền trong ví!", show_alert=True)
+                db.close(); return
+
+            # 2. Trừ tiền & Lắc xúc xắc
+            emp.balance -= amount
+            
+            d1, d2, d3 = random.randint(1,6), random.randint(1,6), random.randint(1,6)
+            total = d1 + d2 + d3
+            result_str = "XỈU" if total <= 10 else "TÀI"
+            
+            # 3. Tính thắng thua
+            is_win = False
+            note = ""
+            
+            if d1 == d2 == d3: # Bão
+                is_win = False
+                note = "⛈️ <b>BÃO! (Nhà cái ăn hết)</b>"
+            elif (choice_code == "xiu" and total <= 10) or (choice_code == "tai" and total > 10):
+                is_win = True
+                profit = int(amount * 0.85)
+                total_return = amount + profit
+                emp.balance += total_return
+                note = f"✅ <b>THẮNG!</b> (+{profit:,.0f}đ)"
+            else:
+                note = f"❌ <b>THUA!</b> (-{amount:,.0f}đ)"
+                
+            db.commit() # Lưu vào DB
+            
+            # 4. Hiển thị kết quả
+            final_msg = (
+                f"🎲 <b>KẾT QUẢ:</b> [{d1}] [{d2}] [{d3}] = <b>{total}</b> ({result_str})\n"
+                f"Bạn cược: {choice_code.upper()} - {amount:,.0f}đ\n"
+                f"━━━━━━━━━━━━━━\n"
+                f"{note}\n"
+                f"💰 Ví còn: {emp.balance:,.0f}đ"
+            )
+            kb = [[InlineKeyboardButton("🔄 Chơi tiếp", callback_data="menu_tx")]]
+            await query.edit_message_text(final_msg, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
+            
+        except Exception as e:
+            print(f"Lỗi Tài Xỉu: {e}") # In lỗi ra log để sửa
+            await query.answer("❌ Lỗi hệ thống, thử lại sau!", show_alert=True)
+        finally:
+            db.close() # Luôn đóng DB
         return
 
-    # --- NHÓM 3: XỬ LÝ PK (Tạo kèo & Nhận kèo) ---
+    # --- NHÓM 4: XỬ LÝ PK ---
     if data.startswith("pk_create_"):
         amount = int(data.split("_")[-1])
         db = SessionLocal()
         emp = db.query(Employee).filter(Employee.telegram_id == str(user.id)).first()
         
         if not emp or emp.balance < amount:
-            await query.answer("💸 Tiền đâu mà thách?", show_alert=True)
+            await query.answer("💸 Không đủ tiền!", show_alert=True)
             db.close(); return
             
-        # Xóa menu cũ
         await query.delete_message()
         
-        # Nội dung tin nhắn
         kb = [[InlineKeyboardButton("🥊 NHẬN KÈO NGAY", callback_data="pk_join")]]
         msg_content = (
             f"🔥 <b>PK THÁCH ĐẤU</b> 🔥\n\n"
-            f"👤 <b>{emp.name}</b> đang tìm đối thủ!\n"
-            f"💰 Mức cược: <b>{amount:,.0f}đ</b>\n"
-            f"👇 <i>Ai dám nhận kèo này không?</i>"
+            f"👤 <b>{emp.name}</b> muốn solo!\n"
+            f"💰 Cược: <b>{amount:,.0f}đ</b>\n"
+            f"👇 <i>Ai dám nhận không?</i>"
         )
 
-        # Gửi ảnh kèm Caption (Nếu có ảnh thì gửi ảnh, lỗi thì gửi text)
         try:
-            sent_msg = await context.bot.send_photo(
-                chat_id=query.message.chat_id,
-                photo=open("static/pk_invite.jpg", "rb"), # <--- Đọc ảnh từ file này
-                caption=msg_content,
-                reply_markup=InlineKeyboardMarkup(kb),
-                parse_mode="HTML"
-            )
+            # Thử gửi ảnh nếu có, không thì gửi text
+            if os.path.exists("static/pk_invite.jpg"):
+                sent_msg = await context.bot.send_photo(
+                    chat_id=query.message.chat_id,
+                    photo=open("static/pk_invite.jpg", "rb"),
+                    caption=msg_content,
+                    reply_markup=InlineKeyboardMarkup(kb),
+                    parse_mode="HTML"
+                )
+            else:
+                sent_msg = await context.bot.send_message(
+                    chat_id=query.message.chat_id,
+                    text=msg_content,
+                    reply_markup=InlineKeyboardMarkup(kb),
+                    parse_mode="HTML"
+                )
+                
+            ACTIVE_PK_MATCHES[sent_msg.message_id] = {
+                "creator_id": str(user.id),
+                "creator_name": emp.name,
+                "amount": amount
+            }
         except Exception as e:
-            # Trường hợp quên bỏ ảnh vào folder static thì gửi tin nhắn thường
-            sent_msg = await context.bot.send_message(
-                chat_id=query.message.chat_id,
-                text=msg_content,
-                reply_markup=InlineKeyboardMarkup(kb),
-                parse_mode="HTML"
-            )
+            print(f"Lỗi PK: {e}")
         
-        # Lưu lại ID tin nhắn để xử lý khi có người bấm nhận
-        ACTIVE_PK_MATCHES[sent_msg.message_id] = {
-            "creator_id": str(user.id),
-            "creator_name": emp.name,
-            "amount": amount
-        }
         db.close()
         return
         
@@ -656,4 +645,5 @@ def get_review():
         "Trà trái cây tươi mát, uống là nghiền. Sẽ quay lại!"
     ])
     return {"content": content}
+
 
