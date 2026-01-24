@@ -217,32 +217,40 @@ async def handle_game_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
         await query.edit_message_text(txt, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
         return
 
+    # --- PHẦN TÀI XỈU MỚI (CÓ XÓA TIN NHẮN) ---
     if data.startswith("tx_play_"):
         try:
+            # 1. Xóa Menu cũ ngay lập tức cho gọn (Yêu cầu 3)
+            try: await query.message.delete()
+            except: pass
+
             parts = data.split("_")
             choice_code = parts[2]
             amount = int(parts[3])
             db = SessionLocal()
             emp = db.query(Employee).filter(Employee.telegram_id == str(user.id)).first()
             
-            if not emp: await query.answer("⚠️ Chưa đăng ký!", show_alert=True); db.close(); return
-            if emp.balance < amount: await query.answer("💸 Không đủ tiền!", show_alert=True); db.close(); return
+            if not emp: await context.bot.send_message(user.id, "⚠️ Chưa đăng ký!"); db.close(); return
+            if emp.balance < amount: await context.bot.send_message(user.id, "💸 Không đủ tiền!"); db.close(); return
 
-            # 1. Trừ tiền trước
+            # Trừ tiền
             emp.balance -= amount
             db.commit()
 
-            # 2. Tung 3 xúc xắc thật của Telegram
-            await query.message.reply_text(f"🎲 Đang tung xúc xắc cho đơn cược {amount:,.0f}đ...")
+            # 2. Gửi tin nhắn chờ & Tung 3 xúc xắc thật
+            msg_wait = await context.bot.send_message(chat_id=query.message.chat_id, text=f"🎲 Đang tung xúc xắc cược {amount:,.0f}đ...")
+            
+            # Tung 3 con xúc xắc (Lưu lại tin nhắn vào biến m1, m2, m3 để tí xóa)
             m1 = await context.bot.send_dice(chat_id=query.message.chat_id)
             m2 = await context.bot.send_dice(chat_id=query.message.chat_id)
             m3 = await context.bot.send_dice(chat_id=query.message.chat_id)
             
+            # Tính toán kết quả
             d1, d2, d3 = m1.dice.value, m2.dice.value, m3.dice.value
             total = d1 + d2 + d3
             result_str = "XỈU" if total <= 10 else "TÀI"
 
-            # 3. Đợi 3-4 giây cho xúc xắc quay xong mới báo kết quả (tạo độ hồi hộp)
+            # Đợi hiệu ứng quay (3.5 giây)
             await asyncio.sleep(3.5)
             
             is_win = False
@@ -258,10 +266,19 @@ async def handle_game_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
                 note = f"❌ <b>THUA!</b> (-{amount:,.0f}đ)"
                 
             db.commit()
-            final_msg = f"📊 Kết quả: <b>{total}</b> ({result_str})\n━━━━━━━━━━━━━━\n{note}\n💰 Ví còn: {emp.balance:,.0f}đ"
+            
+            # 3. Gửi KẾT QUẢ CUỐI CÙNG (Tin nhắn này sẽ ĐƯỢC GIỮ LẠI)
+            final_msg = f"📊 Kết quả: [{d1}] [{d2}] [{d3}] = <b>{total}</b> ({result_str})\n━━━━━━━━━━━━━━\n{note}\n💰 Ví còn: {emp.balance:,.0f}đ"
             kb = [[InlineKeyboardButton("🔄 Chơi tiếp", callback_data="menu_tx")]]
             await context.bot.send_message(chat_id=query.message.chat_id, text=final_msg, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
-        except Exception as e: print(e)
+
+            # 4. Yêu cầu 1: Đợi 5 giây rồi xóa rác (Xúc xắc + Tin nhắn chờ)
+            await asyncio.sleep(5)
+            for m in [msg_wait, m1, m2, m3]:
+                try: await context.bot.delete_message(chat_id=m.chat_id, message_id=m.message_id)
+                except: pass
+
+        except Exception as e: print(f"Lỗi TX: {e}")
         finally: db.close()
         return
 
@@ -285,13 +302,18 @@ async def handle_game_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
         except Exception as e: print(f"Lỗi PK: {e}")
         db.close(); return
 
+    # --- PHẦN PK MỚI (CÓ XÓA TIN NHẮN) ---
     if data == "pk_join":
-        match_info = ACTIVE_PK_MATCHES.get(query.message.message_id)
+        invite_msg_id = query.message.message_id # Lưu ID lời mời để tí xóa
+        chat_id = query.message.chat_id
+
+        match_info = ACTIVE_PK_MATCHES.get(invite_msg_id)
         if not match_info: await query.answer("❌ Kèo đã xong!", show_alert=True); return
             
         challenger_id = str(user.id)
         creator_id = match_info["creator_id"]
         amount = match_info["amount"]
+        
         if challenger_id == creator_id: await query.answer("🚫 Đừng tự chơi với mình!", show_alert=True); return
             
         db = SessionLocal()
@@ -301,41 +323,45 @@ async def handle_game_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
         if not p2 or p2.balance < amount: await query.answer("💸 Bạn không đủ tiền!", show_alert=True); db.close(); return
         if p1.balance < amount: await query.answer("❌ Chủ kèo hết tiền!", show_alert=True); db.close(); return
 
+        # Trừ tiền
         p1.balance -= amount; p2.balance -= amount
         db.commit()
 
-        # Thông báo bắt đầu đấu
-        await context.bot.send_message(chat_id=query.message.chat_id, text=f"🥊 <b>TRẬN ĐẤU BẮT ĐẦU!</b>\n{match_info['creator_name']} VS {p2.name}", parse_mode="HTML")
+        # Thông báo bắt đầu (Tạm thời)
+        start_msg = await context.bot.send_message(chat_id=chat_id, text=f"🥊 <b>{match_info['creator_name']}</b> VS <b>{p2.name}</b>\n🎲 Đang tung xúc xắc...", parse_mode="HTML")
 
-        # Tung xúc xắc cho người 1
-        await context.bot.send_message(chat_id=query.message.chat_id, text=f"🎲 Lượt của {match_info['creator_name']}:")
-        m1 = await context.bot.send_dice(chat_id=query.message.chat_id)
+        # Tung xúc xắc P1
+        m1 = await context.bot.send_dice(chat_id=chat_id)
         d1 = m1.dice.value
-        
-        await asyncio.sleep(2) # Đợi 1 chút
+        await asyncio.sleep(2) 
 
-        # Tung xúc xắc cho người 2
-        await context.bot.send_message(chat_id=query.message.chat_id, text=f"🎲 Lượt của {p2.name}:")
-        m2 = await context.bot.send_dice(chat_id=query.message.chat_id)
+        # Tung xúc xắc P2
+        m2 = await context.bot.send_dice(chat_id=chat_id)
         d2 = m2.dice.value
+        await asyncio.sleep(3.5) # Đợi quay xong
 
-        # Đợi xúc xắc 2 xoay xong
-        await asyncio.sleep(3.5)
-
+        # Tính kết quả
         total_pot = amount * 2; fee = int(total_pot * 0.05); prize = total_pot - fee
-        result_txt = f"🥊 <b>KẾT QUẢ PK</b>\n👤 {match_info['creator_name']}: {d1}\n👤 {p2.name}: {d2}\n━━━━━━━━━━━━━━\n"
+        result_txt = f"🥊 <b>KẾT QUẢ PK</b> ({amount:,.0f}đ)\n"
         
         if d1 > d2: 
-            p1.balance += prize; result_txt += f"🏆 <b>{match_info['creator_name']} THẮNG!</b>\n💰 +{prize:,.0f}đ"
+            p1.balance += prize; result_txt += f"👤 {match_info['creator_name']}: {d1} 🏆 <b>THẮNG</b>\n👤 {p2.name}: {d2}\n💰 +{prize:,.0f}đ"
         elif d2 > d1: 
-            p2.balance += prize; result_txt += f"🏆 <b>{p2.name} THẮNG!</b>\n💰 +{prize:,.0f}đ"
+            p2.balance += prize; result_txt += f"👤 {match_info['creator_name']}: {d1}\n👤 {p2.name}: {d2} 🏆 <b>THẮNG</b>\n💰 +{prize:,.0f}đ"
         else: 
-            p1.balance += amount; p2.balance += amount; result_txt += "🤝 <b>HÒA!</b> Hoàn tiền."
+            p1.balance += amount; p2.balance += amount; result_txt += f"👤 {match_info['creator_name']}: {d1}\n👤 {p2.name}: {d2}\n🤝 <b>HÒA!</b> Hoàn tiền."
 
         db.commit()
-        if query.message.message_id in ACTIVE_PK_MATCHES: del ACTIVE_PK_MATCHES[query.message.message_id]
+        if invite_msg_id in ACTIVE_PK_MATCHES: del ACTIVE_PK_MATCHES[invite_msg_id]
         
-        await context.bot.send_message(chat_id=query.message.chat_id, text=result_txt, parse_mode="HTML")
+        # Gửi kết quả cuối cùng
+        await context.bot.send_message(chat_id=chat_id, text=result_txt, parse_mode="HTML")
+        
+        # Yêu cầu 2: XÓA NGAY LẬP TỨC (Lời mời + Thông báo start + Xúc xắc 1 + Xúc xắc 2)
+        for mid in [invite_msg_id, start_msg.message_id, m1.message_id, m2.message_id]:
+            try: await context.bot.delete_message(chat_id=chat_id, message_id=mid)
+            except: pass
+
         db.close()
         return
 
@@ -582,6 +608,7 @@ def get_review():
         "Trà trái cây tươi mát, uống là nghiền. Sẽ quay lại!"
     ])
     return {"content": content}
+
 
 
 
