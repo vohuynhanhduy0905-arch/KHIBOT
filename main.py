@@ -980,6 +980,7 @@ async def lifespan(app: FastAPI):
     # 2. Cài đặt lại danh sách lệnh khi bấm vào nút Menu
     await bot_app.bot.set_my_commands([
         BotCommand("start", "🏠 Về Menu chính"),
+        BotCommand("order", "⚡ Mở Menu Order"),
         BotCommand("me", "💳 Ví & Thẻ"),
         BotCommand("game", "🎰 Chơi Game"),
         BotCommand("diemdanh", "📅 Điểm danh"),
@@ -1029,6 +1030,7 @@ def get_review():
         "Trà trái cây tươi mát, uống là nghiền. Sẽ quay lại!"
     ])
     return {"content": content}
+
 
 
 
