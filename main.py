@@ -625,24 +625,33 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # --- TÌM VÀ THAY THẾ TOÀN BỘ HÀM order_command ---
 
 async def order_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # 1. Log để kiểm tra
-    print(f"DEBUG: Nhận lệnh /order từ {update.effective_user.first_name}")
+    # 1. Log ra tên nhóm để kiểm tra
+    chat_title = update.effective_chat.title or "Chat Riêng"
+    print(f"DEBUG: Nhận lệnh /order từ {update.effective_user.first_name} tại: {chat_title}")
 
     # 2. Tạo nút Web App
     kb = [
         [InlineKeyboardButton("⚡ MỞ MENU ORDER ⚡", web_app=WebAppInfo(url=f"{WEB_URL}/webapp"))]
     ]
 
-    # 3. Gửi tin nhắn (ĐÃ SỬA LỖI QUOTE)
+    # 3. Xác định xem có phải là nhóm có Topic không
+    # Nếu là nhóm Topic, tin nhắn sẽ có message_thread_id
+    thread_id = None
+    if update.message and update.message.message_thread_id:
+        thread_id = update.message.message_thread_id
+
+    # 4. Gửi tin nhắn (Dùng phương pháp an toàn nhất)
     try:
-        await update.message.reply_text(
-            "👇 Bấm vào nút bên dưới để lên đơn nhé:", 
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text="👇 Bấm vào nút bên dưới để lên đơn nhé:",
             reply_markup=InlineKeyboardMarkup(kb),
-            # Thay vì dùng quote=True, ta dùng dòng dưới đây:
-            reply_to_message_id=update.message.message_id 
+            message_thread_id=thread_id, # <--- Gửi đúng vào Topic đang chat
+            reply_to_message_id=update.message.message_id # <--- Reply tin nhắn của user
         )
+        print("✅ Đã gửi tin nhắn thành công!")
     except Exception as e:
-        print(f"LỖI GỬI TIN: {e}")
+        print(f"❌ LỖI GỬI TIN: {e}")
 
 
 async def me_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1059,6 +1068,7 @@ def get_review():
         "Trà trái cây tươi mát, uống là nghiền. Sẽ quay lại!"
     ])
     return {"content": content}
+
 
 
 
