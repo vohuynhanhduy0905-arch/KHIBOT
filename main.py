@@ -623,21 +623,23 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     db.close()
     
 # --- TÌM VÀ THAY THẾ TOÀN BỘ HÀM order_command ---
+
 async def order_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # 1. In ra log để kiểm tra Bot có nhận lệnh không (Xem trên Dashboard Render)
-    print(f"DEBUG: Nhận lệnh /order từ {update.effective_user.first_name} trong nhóm {update.effective_chat.title}")
+    # 1. Log để kiểm tra
+    print(f"DEBUG: Nhận lệnh /order từ {update.effective_user.first_name}")
 
     # 2. Tạo nút Web App
     kb = [
         [InlineKeyboardButton("⚡ MỞ MENU ORDER ⚡", web_app=WebAppInfo(url=f"{WEB_URL}/webapp"))]
     ]
 
-    # 3. Gửi tin nhắn
+    # 3. Gửi tin nhắn (ĐÃ SỬA LỖI QUOTE)
     try:
         await update.message.reply_text(
             "👇 Bấm vào nút bên dưới để lên đơn nhé:", 
             reply_markup=InlineKeyboardMarkup(kb),
-            quote=True # <--- QUAN TRỌNG: Bắt buộc có để chạy trong nhóm Topic
+            # Thay vì dùng quote=True, ta dùng dòng dưới đây:
+            reply_to_message_id=update.message.message_id 
         )
     except Exception as e:
         print(f"LỖI GỬI TIN: {e}")
@@ -1057,6 +1059,7 @@ def get_review():
         "Trà trái cây tươi mát, uống là nghiền. Sẽ quay lại!"
     ])
     return {"content": content}
+
 
 
 
