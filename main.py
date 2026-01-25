@@ -194,6 +194,14 @@ async def handle_game_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
         await query.answer()
     except: pass
 
+    if data == "pos_done":
+        # Khi thu ngân bấm, sửa tin nhắn thêm chữ [ĐÃ XỬ LÝ] và xóa nút bấm
+        original_text = query.message.text_html
+        new_text = f"<s>{original_text}</s>\n\n✅ <b>THU NGÂN ĐÃ NHẬP MÁY</b>"
+        await query.edit_message_text(text=new_text, parse_mode="HTML", reply_markup=None)
+        await query.answer("Đã đánh dấu hoàn thành!")
+        return
+
     # --- NHÓM 1: ĐIỀU HƯỚNG ---
     if data == "close_menu":
         await query.delete_message()
@@ -883,38 +891,45 @@ import json # Thêm vào đầu file main.py
 
 # --- HÀM XỬ LÝ DỮ LIỆU TỪ WEBAPP ---
 async def web_app_data_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Lấy dữ liệu JSON từ WebApp
-    data = json.loads(update.effective_message.web_app_data.data)
-    user = update.effective_user
-    
-    order_id = data.get("order_id")
-    customer = data.get("customer")
-    items = data.get("items")
-    total = data.get("total")
+    try:
+        data = json.loads(update.effective_message.web_app_data.data)
+        user = update.effective_user
+        
+        customer = data.get("customer", "Khách")
+        items = data.get("items")
+        total = data.get("total")
 
-    # Tạo nội dung hóa đơn
-    bill = f"🧾 <b>ĐƠN HÀNG MỚI #{order_id}</b>\n"
-    bill += f"👤 Nhân viên: {user.full_name}\n"
-    bill += f"👤 Khách hàng: {customer}\n"
-    bill += f"━━━━━━━━━━━━━━━━━━\n"
-    
-    for item in items:
-        bill += f"• <b>{item['name']}</b> x{item['qty']}\n"
-        if item['tops'].length > 0:
-            tops_str = ", ".join([t['name'] for t in item['tops']])
-            bill += f"   + Topping: {tops_str}\n"
-        if item['notes'].length > 0:
-            notes_str = ", ".join(item['notes'])
-            bill += f"   + Ghi chú: {notes_str}\n"
-    
-    bill += f"━━━━━━━━━━━━━━━━━━\n"
-    bill += f"💰 <b>TỔNG CỘNG: {total:,.0f}đ</b>"
+        # ĐỊNH DẠNG SIÊU GỌN CHO THU NGÂN
+        # Cấu trúc: [Tên khách] - [Tên phục vụ]
+        # Món x Số lượng (Topping)
+        msg = f"🔔 <b>ĐƠN: {customer.upper()}</b> (từ {user.first_name})\n"
+        msg += "━━━━━━━━━━━━━━━━━━\n"
+        
+        for item in items:
+            # Gom topping và ghi chú vào ngoặc đơn
+            extra = []
+            if item.get('tops'):
+                extra.extend([t['name'] for t in item['tops']])
+            if item.get('notes'):
+                extra.extend(item['notes'])
+            
+            detail = f" ({', '.join(extra)})" if extra else ""
+            msg += f"• {item['qty']}x <b>{item['name']}</b>{detail}\n"
+        
+        msg += f"━━━━━━━━━━━━━━━━━━\n"
+        msg += f"💰 <b>TỔNG: {total/1000:,.0f}k</b>" # Hiển thị dạng 79k cho gọn
 
-    # 1. Gửi vào nhóm Bếp (MAIN_GROUP_ID)
-    await context.bot.send_message(chat_id=MAIN_GROUP_ID, text=bill, parse_mode="HTML")
-    
-    # 2. Phản hồi cho nhân viên tại Chat riêng
-    await update.message.reply_text(f"✅ Đã gửi đơn #{order_id} vào bếp thành công!")
+        # Nút bấm để thu ngân xác nhận đã nhập máy
+        kb = [[InlineKeyboardButton("✅ ĐÃ NHẬP MÁY", callback_data="pos_done")]]
+        
+        await context.bot.send_message(
+            chat_id=MAIN_GROUP_ID, 
+            text=msg, 
+            reply_markup=InlineKeyboardMarkup(kb),
+            parse_mode="HTML"
+        )
+    except Exception as e:
+        print(f"Lỗi WebApp Data: {e}")
 
 # --- WEB & MAIN ---
 bot_app = Application.builder().token(TOKEN).build()
@@ -997,6 +1012,7 @@ def get_review():
         "Trà trái cây tươi mát, uống là nghiền. Sẽ quay lại!"
     ])
     return {"content": content}
+
 
 
 
