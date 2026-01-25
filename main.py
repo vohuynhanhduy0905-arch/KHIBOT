@@ -624,15 +624,13 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
 # --- HÀM GỌI MENU ORDER TRONG NHÓM ---
 async def order_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # LƯU Ý: Thay cái link dưới đây bằng link bạn lấy từ BotFather (quy trình /newapp)
-    APP_URL = "https://t.me/trasuakhibot/myapp" 
-    
+    # Nút bấm Inline mở Web App
     kb = [
-        [InlineKeyboardButton("⚡ MỞ MENU ORDER ⚡", url=APP_URL)]
+        [InlineKeyboardButton("⚡ MỞ MENU ORDER ⚡", web_app=WebAppInfo(url=f"{WEB_URL}/webapp"))]
     ]
-    
+    # Gửi vào nhóm
     await update.message.reply_text(
-        "👇 Bấm vào nút bên dưới để lên đơn ngay trong nhóm:", 
+        "👇 Bấm vào nút bên dưới để lên đơn nhé:", 
         reply_markup=InlineKeyboardMarkup(kb)
     )
 
@@ -997,48 +995,6 @@ async def lifespan(app: FastAPI):
     await bot_app.stop()
     await bot_app.shutdown()
 
-from pydantic import BaseModel
-
-# Khai báo cấu trúc dữ liệu đơn hàng
-class OrderData(BaseModel):
-    customer: str
-    items: list
-    total: float
-    user_name: str  # Tên nhân viên gửi đơn
-
-@app.post("/api/submit_order")
-async def submit_order(data: OrderData):
-    try:
-        # 1. Tạo nội dung tin nhắn thông báo đơn hàng
-        msg = f"🔔 <b>ĐƠN MỚI: {data.customer.upper()}</b>\n"
-        msg += f"👤 Nhân viên: {data.user_name}\n"
-        msg += "━━━━━━━━━━━━━━━━━━\n"
-        
-        for item in data.items:
-            extra = []
-            if item.get('tops'): extra.extend([t['name'] for t in item['tops']])
-            if item.get('notes'): extra.extend(item['notes'])
-            detail = f" ({', '.join(extra)})" if extra else ""
-            msg += f"• {item['qty']}x <b>{item['name']}</b>{detail}\n"
-        
-        msg += "━━━━━━━━━━━━━━━━━━\n"
-        msg += f"💰 <b>TỔNG: {data.total/1000:,.0f}k</b>"
-
-        # 2. Gửi tin nhắn vào Group (Dùng bot_app đã khai báo ở trên)
-        # Nút xác nhận cho thu ngân
-        kb = [[InlineKeyboardButton("✅ ĐÃ NHẬP MÁY", callback_data="pos_done")]]
-        
-        await bot_app.bot.send_message(
-            chat_id=MAIN_GROUP_ID, 
-            text=msg, 
-            reply_markup=InlineKeyboardMarkup(kb),
-            parse_mode="HTML"
-        )
-        return {"status": "success"}
-    except Exception as e:
-        print(f"Lỗi xử lý đơn: {e}")
-        return {"status": "error", "message": str(e)}
-
 app = FastAPI(lifespan=lifespan)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
@@ -1073,7 +1029,6 @@ def get_review():
         "Trà trái cây tươi mát, uống là nghiền. Sẽ quay lại!"
     ])
     return {"content": content}
-
 
 
 
