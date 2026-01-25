@@ -98,17 +98,10 @@
             <button class="qty-btn" onclick="adjustQty(1)">+</button>
         </div>
     </div>
-    <div class="modal-body">
-        <!-- TOPPING 5K -->
-        <div class="section-title">✨ Topping Thường (+5k)</div>
-        <div id="listTopping5k"></div>
-
-        <!-- TOPPING 10K -->
-        <div class="section-title">🍓 Topping Trái Cây (+10k)</div>
-        <div id="listTopping10k"></div>
-
-        <!-- NOTE -->
-        <div class="section-title">📝 Ghi chú</div>
+     <div class="modal-body">
+        
+        <!-- 1. ĐƯA GHI CHÚ LÊN ĐẦU -->
+        <div class="section-title">📝 Ghi chú (Đá/Ngọt)</div>
         <div id="listNotes">
             <div class="note-tag" onclick="toggleNote(this)">Ít đá</div>
             <div class="note-tag" onclick="toggleNote(this)">Không đá</div>
@@ -116,6 +109,16 @@
             <div class="note-tag" onclick="toggleNote(this)">Nhiều ngọt</div>
             <div class="note-tag" onclick="toggleNote(this)">Mang về</div>
         </div>
+
+        <!-- 2. ĐẾN PHẦN CHỌN TOPPING (Sửa tiêu đề để nhân viên hiểu) -->
+        <div class="section-title" style="color: var(--primary); margin-top: 20px;">
+            🍹 Tùy chọn Topping<br>
+            <small style="font-weight: normal; color: #666; font-size: 11px;">(Không chọn = Mặc định Full Topping)</small>
+        </div>
+        
+        <!-- Render danh sách Topping -->
+        <div id="listTopping5k"></div>
+        <div id="listTopping10k"></div>
     </div>
     <div style="padding: 15px; border-top: 1px solid #eee;">
         <button class="btn-submit w-100" onclick="addToCart()">THÊM (<span id="mBtnTotal">0</span>đ)</button>
@@ -130,7 +133,8 @@
         { id: 'trasua', name: 'Trà Sữa' },
         { id: 'traicay', name: 'Trà Trái Cây' },
         { id: 'macchiato', name: 'Macchiato' },
-        { id: 'dacbiet', name: 'Đặc Biệt/Latte' }
+        { id: 'dacbiet', name: 'Đặc Biệt/Latte' },
+        { id: 'topping', name: 'Topping Thêm' } // <--- MỚI: Thêm tab Topping
     ];
 
     const products = [
@@ -165,6 +169,25 @@
         { id: 31, cat: 'dacbiet', name: 'Sữa Tươi Trân Châu ĐĐ', price: 27000, img: 'https://img.icons8.com/emoji/96/glass-of-milk.png' },
         { id: 32, cat: 'dacbiet', name: 'Hồng Trà Latte', price: 27000, img: 'https://img.icons8.com/emoji/96/glass-of-milk.png' },
         { id: 33, cat: 'dacbiet', name: 'Matcha Latte', price: 27000, img: 'https://img.icons8.com/emoji/96/glass-of-milk.png' },
+        // 1. Nhóm Topping 5k
+        { id: 90, cat: 'topping', name: 'Thêm Trân Châu', price: 5000, img: 'https://img.icons8.com/color/96/boiling-bubbles.png' },
+        { id: 91, cat: 'topping', name: 'Thêm Củ Năng', price: 5000, img: 'https://img.icons8.com/color/96/ingredients.png' },
+        { id: 92, cat: 'topping', name: 'Thêm Phô Mai', price: 5000, img: 'https://img.icons8.com/color/96/cheese.png' },
+        { id: 93, cat: 'topping', name: 'Thêm Rau Câu', price: 5000, img: 'https://img.icons8.com/color/96/jelly.png' },
+        { id: 94, cat: 'topping', name: 'Thêm Khúc Bạch', price: 5000, img: 'https://img.icons8.com/color/96/tofu.png' },
+        { id: 95, cat: 'topping', name: 'Thêm Sương Sáo', price: 5000, img: 'https://img.icons8.com/color/96/jelly-band.png' },
+        { id: 96, cat: 'topping', name: 'Thêm Thạch Đào', price: 5000, img: 'https://img.icons8.com/color/96/peach.png' },
+        { id: 97, cat: 'topping', name: 'Thêm Flan Trứng', price: 5000, img: 'https://img.icons8.com/color/96/creme-caramel.png' },
+        { id: 98, cat: 'topping', name: 'Thêm Ngọc Trai', price: 5000, img: 'https://img.icons8.com/color/96/pearl.png' },
+        { id: 99, cat: 'topping', name: 'Thêm Khoai Dẻo', price: 5000, img: 'https://img.icons8.com/color/96/potato.png' },
+
+        // 2. Nhóm Topping Trái Cây (Giả định 10k/phần thêm)
+        { id: 100, cat: 'topping', name: 'Thêm Đác Thơm', price: 10000, img: 'https://img.icons8.com/color/96/pineapple.png' },
+        { id: 101, cat: 'topping', name: 'Thêm Đác Dâu Tằm', price: 10000, img: 'https://img.icons8.com/color/96/raspberry.png' },
+        { id: 102, cat: 'topping', name: 'Thêm TC Nhiệt Đới', price: 10000, img: 'https://img.icons8.com/color/96/fruit-bag.png' },
+        { id: 104, cat: 'topping', name: 'Thêm Dưa Lưới', price: 10000, img: 'https://img.icons8.com/color/96/melon.png' },
+        { id: 105, cat: 'topping', name: 'Thêm Ổi Hồng', price: 10000, img: 'https://img.icons8.com/color/96/guava.png' },
+        { id: 106, cat: 'topping', name: 'Thêm Mãng Cầu', price: 10000, img: 'https://img.icons8.com/color/96/custard-apple.png' },
     ];
 
     const topping5k = ["Trân Châu", "Củ Năng", "Phô Mai", "Rau Câu", "Khúc Bạch", "Sương Sáo", "Thạch Đào", "Flan Trứng", "Ngọc Trai", "Khoai Dẻo"];
@@ -218,17 +241,19 @@
         document.getElementById('mBasePrice').innerText = p.price.toLocaleString() + 'đ';
         document.getElementById('mQty').innerText = 1;
 
-        // Render Toppings
+        // Render Toppings 
         const t5 = document.getElementById('listTopping5k');
         t5.innerHTML = topping5k.map(t => `
-            <div class="topping-item" onclick="toggleTop(this, '${t}', 5000)">
-                <span class="t-name">${t}</span> <span class="t-price">+5k</span>
+            <div class="topping-item" onclick="toggleTop(this, '${t}', 0)"> <!-- Truyền giá 0 -->
+                <span class="t-name">${t}</span> 
+                <!-- Đã xóa thẻ span hiển thị giá +5k -->
             </div>`).join('');
 
         const t10 = document.getElementById('listTopping10k');
         t10.innerHTML = topping10k.map(t => `
-            <div class="topping-item" onclick="toggleTop(this, '${t}', 10000)">
-                <span class="t-name">${t}</span> <span class="t-price text-danger">+10k</span>
+            <div class="topping-item" onclick="toggleTop(this, '${t}', 0)"> <!-- Truyền giá 0 -->
+                <span class="t-name">${t}</span> 
+                <!-- Đã xóa thẻ span hiển thị giá +10k -->
             </div>`).join('');
 
         // Reset Notes
@@ -247,7 +272,8 @@
     function toggleTop(el, name, price) {
         el.classList.toggle('active');
         if(el.classList.contains('active')) {
-            currentItem.tops.push({name, price});
+            // Giá 0đ vì đây là chọn trong phần có sẵn, không phải mua thêm
+            currentItem.tops.push({name, price: 0}); 
         } else {
             currentItem.tops = currentItem.tops.filter(t => t.name !== name);
         }
@@ -319,3 +345,4 @@
 </body>
 
 </html>
+
