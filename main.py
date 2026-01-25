@@ -624,14 +624,14 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
 # --- HÀM GỌI MENU ORDER TRONG NHÓM ---
 async def order_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Nút bấm Inline mở Web App
     kb = [
         [InlineKeyboardButton("⚡ MỞ MENU ORDER ⚡", web_app=WebAppInfo(url=f"{WEB_URL}/webapp"))]
     ]
-    # Gửi vào nhóm
+    # Sửa đoạn này để hỗ trợ nhóm có Topic
     await update.message.reply_text(
         "👇 Bấm vào nút bên dưới để lên đơn nhé:", 
-        reply_markup=InlineKeyboardMarkup(kb)
+        reply_markup=InlineKeyboardMarkup(kb),
+        message_thread_id=update.message.message_thread_id # <--- QUAN TRỌNG CHO NHÓM TOPIC
     )
 
 
@@ -950,6 +950,7 @@ async def web_app_data_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 # --- WEB & MAIN ---
 bot_app = Application.builder().token(TOKEN).build()
 bot_app.add_handler(CommandHandler("start", start_command))
+bot_app.add_handler(CommandHandler("order", order_command))
 bot_app.add_handler(CommandHandler("me", me_command))
 bot_app.add_handler(CommandHandler("top", top_command))
 bot_app.add_handler(CommandHandler("qr", qr_command)) # Đã thêm lệnh QR
@@ -966,7 +967,6 @@ bot_app.add_handler(CallbackQueryHandler(handle_game_buttons))   # Xử lý toà
 bot_app.add_handler(CommandHandler("diemdanh", daily_command)) # <--- Mới
 bot_app.add_handler(CommandHandler("shop", shop_command))      # <--- Mới
 bot_app.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, web_app_data_handler))
-bot_app.add_handler(CommandHandler("order", order_command))
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -1030,6 +1030,7 @@ def get_review():
         "Trà trái cây tươi mát, uống là nghiền. Sẽ quay lại!"
     ])
     return {"content": content}
+
 
 
 
