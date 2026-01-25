@@ -10,9 +10,11 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 # --- CẬP NHẬT IMPORT (Dòng 8-15) ---
+# --- TÌM ĐOẠN IMPORT TƯƠNG TỰ VÀ THAY THẾ ---
 from telegram import (
     Update, ReplyKeyboardMarkup, ReplyKeyboardRemove, BotCommand, 
-    InlineKeyboardButton, InlineKeyboardMarkup, ChatPermissions, WebAppInfo
+    InlineKeyboardButton, InlineKeyboardMarkup, ChatPermissions, WebAppInfo,
+    KeyboardButton # <--- QUAN TRỌNG: Phải có cái này mới tạo nút Web App được
 )
 from telegram.ext import (
     Application, CommandHandler, MessageHandler, filters, ContextTypes, 
@@ -72,12 +74,13 @@ def get_rank_info(balance):
     if balance >= 500000: name, icon = "Huyền Thoại", "👑🐉"
     return name, icon
 
-# --- HÀM TẠO MENU CHÍNH CHO NHÂN VIÊN ---
+## --- TÌM HÀM get_main_menu VÀ THAY THẾ TOÀN BỘ ---
 def get_main_menu():
     keyboard = [
         ["💳 Ví & Thẻ", "📅 Điểm Danh"],
         ["🎰 Giải Trí", "🛒 Shop Xu"],
-        [KeyboardButton("🛒 POS ORDER", web_app=WebAppInfo(url=f"{WEB_URL}/webapp"))] # Nút mở WebApp
+        # Dưới đây là cách viết đúng để nút mở lên Web App
+        [KeyboardButton("⚡ Order Nhanh (Vào Nhóm)", web_app=WebAppInfo(url=f"{WEB_URL}/webapp"))] 
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
@@ -1012,6 +1015,7 @@ def get_review():
         "Trà trái cây tươi mát, uống là nghiền. Sẽ quay lại!"
     ])
     return {"content": content}
+
 
 
 
