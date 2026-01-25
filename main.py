@@ -624,18 +624,14 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
 # --- HÀM GỌI MENU ORDER TRONG NHÓM ---
 async def order_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # CHÚ Ý: Phải dùng KeyboardButton (Nút bàn phím) thì WebApp mới gửi dữ liệu về được (tg.sendData)
-    # InlineKeyboardButton (Nút dưới tin nhắn) KHÔNG hỗ trợ gửi data về.
-    
+    # Nút bấm Inline mở Web App
     kb = [
-        [KeyboardButton("⚡ MỞ MENU ORDER ⚡", web_app=WebAppInfo(url=f"{WEB_URL}/webapp"))]
+        [InlineKeyboardButton("⚡ MỞ MENU ORDER ⚡", web_app=WebAppInfo(url=f"{WEB_URL}/webapp"))]
     ]
-    
-    # Gửi vào nhóm kèm bàn phím
+    # Gửi vào nhóm
     await update.message.reply_text(
-        "👇 Bấm vào nút <b>MENU ORDER</b> hiện dưới bàn phím để lên đơn nhé:", 
-        reply_markup=ReplyKeyboardMarkup(kb, resize_keyboard=True, one_time_keyboard=False), # one_time=False để nút luôn hiện cho nhân viên bấm
-        parse_mode="HTML"
+        "👇 Bấm vào nút bên dưới để lên đơn nhé:", 
+        reply_markup=InlineKeyboardMarkup(kb)
     )
 
 
@@ -1033,7 +1029,6 @@ def get_review():
         "Trà trái cây tươi mát, uống là nghiền. Sẽ quay lại!"
     ])
     return {"content": content}
-
 
 
 
