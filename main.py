@@ -622,17 +622,25 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(msg, reply_markup=get_main_menu(), parse_mode="HTML")
     db.close()
     
-# --- HÀM GỌI MENU ORDER TRONG NHÓM ---
+# --- TÌM VÀ THAY THẾ TOÀN BỘ HÀM order_command ---
 async def order_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # 1. In ra log để kiểm tra Bot có nhận lệnh không (Xem trên Dashboard Render)
+    print(f"DEBUG: Nhận lệnh /order từ {update.effective_user.first_name} trong nhóm {update.effective_chat.title}")
+
+    # 2. Tạo nút Web App
     kb = [
         [InlineKeyboardButton("⚡ MỞ MENU ORDER ⚡", web_app=WebAppInfo(url=f"{WEB_URL}/webapp"))]
     ]
-    # Sửa đoạn này để hỗ trợ nhóm có Topic
-    await update.message.reply_text(
-        "👇 Bấm vào nút bên dưới để lên đơn nhé:", 
-        reply_markup=InlineKeyboardMarkup(kb),
-        message_thread_id=update.message.message_thread_id # <--- QUAN TRỌNG CHO NHÓM TOPIC
-    )
+
+    # 3. Gửi tin nhắn
+    try:
+        await update.message.reply_text(
+            "👇 Bấm vào nút bên dưới để lên đơn nhé:", 
+            reply_markup=InlineKeyboardMarkup(kb),
+            quote=True # <--- QUAN TRỌNG: Bắt buộc có để chạy trong nhóm Topic
+        )
+    except Exception as e:
+        print(f"LỖI GỬI TIN: {e}")
 
 
 async def me_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1030,6 +1038,7 @@ def get_review():
         "Trà trái cây tươi mát, uống là nghiền. Sẽ quay lại!"
     ])
     return {"content": content}
+
 
 
 
