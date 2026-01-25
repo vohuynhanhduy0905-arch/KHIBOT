@@ -325,47 +325,24 @@
     }
 
     function submitOrder() {
-    const total = cart.reduce((s, i) => {
-        let tPrice = i.tops.reduce((a, b) => a + b.price, 0);
-        return s + ((i.price + tPrice) * i.qty);
-    }, 0);
+        const total = cart.reduce((s, i) => {
+                let tPrice = i.tops.reduce((a, b) => a + b.price, 0);
+                return s + ((i.price + tPrice) * i.qty);
+        }, 0);
 
-    // Lấy tên nhân viên từ Telegram
-    const userName = tg.initDataUnsafe?.user?.first_name || "Nhân viên";
-
-    const orderData = {
-        customer: document.getElementById('customerName').value || 'Khách lẻ',
-        items: cart,
-        total: total,
-        user_name: userName
-    };
-
-    // Gửi dữ liệu về Server FastAPI thay vì dùng tg.sendData
-    fetch('/api/submit_order', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(orderData),
-    })
-    .then(response => {
-        if (response.ok) {
-            // Nếu gửi thành công thì mới đóng App
-            tg.close(); 
-        } else {
-            alert("Lỗi khi gửi đơn hàng. Vui lòng thử lại!");
-        }
-    })
-    .catch((error) => {
-        console.error('Error:', error);
-        alert("Không thể kết nối đến máy chủ!");
-    });
-}
+        const data = {
+            order_id: document.getElementById('orderId').innerText,
+            customer: document.getElementById('customerName').value || 'Khách lẻ',
+            items: cart,
+            total: total
+        };
+        tg.sendData(JSON.stringify(data));
+        tg.close();
+    }
 
     init();
 </script>
 </body>
 
 </html>
-
 
