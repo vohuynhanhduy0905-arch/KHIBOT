@@ -625,33 +625,45 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # --- TÌM VÀ THAY THẾ TOÀN BỘ HÀM order_command ---
 
 async def order_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # 1. Log ra tên nhóm để kiểm tra
-    chat_title = update.effective_chat.title or "Chat Riêng"
-    print(f"DEBUG: Nhận lệnh /order từ {update.effective_user.first_name} tại: {chat_title}")
+    # 1. Lấy thông tin cơ bản
+    user_name = update.effective_user.first_name
+    chat_id = update.effective_chat.id
+    
+    print(f"DEBUG: Đang xử lý lệnh /order cho {user_name} tại {chat_id}")
 
     # 2. Tạo nút Web App
     kb = [
         [InlineKeyboardButton("⚡ MỞ MENU ORDER ⚡", web_app=WebAppInfo(url=f"{WEB_URL}/webapp"))]
     ]
 
-    # 3. Xác định xem có phải là nhóm có Topic không
-    # Nếu là nhóm Topic, tin nhắn sẽ có message_thread_id
-    thread_id = None
-    if update.message and update.message.message_thread_id:
-        thread_id = update.message.message_thread_id
+    # 3. Chuẩn bị tham số gửi tin
+    params = {
+        'chat_id': chat_id,
+        'text': f"👇 {user_name} ơi, bấm nút dưới để chọn món nhé:",
+        'reply_markup': InlineKeyboardMarkup(kb)
+    }
 
-    # 4. Gửi tin nhắn (Dùng phương pháp an toàn nhất)
+    # 4. Xử lý Reply (Tránh lỗi nếu tin nhắn gốc bị xóa)
+    if update.message:
+        params['reply_to_message_id'] = update.message.message_id
+        
+        # Xử lý Topic (Nếu nhóm có Topic)
+        # Dùng getattr để không bị lỗi nếu thư viện quá cũ không có thuộc tính này
+        thread_id = getattr(update.message, 'message_thread_id', None)
+        if thread_id:
+            params['message_thread_id'] = thread_id
+
+    # 5. Gửi tin nhắn bằng hàm gốc (Send Message)
     try:
-        await context.bot.send_message(
-            chat_id=update.effective_chat.id,
-            text="👇 Bấm vào nút bên dưới để lên đơn nhé:",
-            reply_markup=InlineKeyboardMarkup(kb),
-            message_thread_id=thread_id, # <--- Gửi đúng vào Topic đang chat
-            reply_to_message_id=update.message.message_id # <--- Reply tin nhắn của user
-        )
-        print("✅ Đã gửi tin nhắn thành công!")
+        await context.bot.send_message(**params)
+        print("✅ Gửi tin nhắn thành công!")
     except Exception as e:
         print(f"❌ LỖI GỬI TIN: {e}")
+        # Nếu lỗi do Topic/Reply, thử gửi tin nhắn trần (không reply)
+        try:
+            await context.bot.send_message(chat_id=chat_id, text="👇 Bấm vào đây để Order:", reply_markup=InlineKeyboardMarkup(kb))
+        except:
+            pass
 
 
 async def me_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1068,6 +1080,7 @@ def get_review():
         "Trà trái cây tươi mát, uống là nghiền. Sẽ quay lại!"
     ])
     return {"content": content}
+
 
 
 
