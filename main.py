@@ -516,81 +516,6 @@ async def handle_game_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
         db.close()
         return
         
-# --- HÀM PHỤ: CHỐNG SPAM & MUTE TỰ ĐỘNG ---
-async def check_private(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # 1. Nếu là chat riêng thì cho qua
-    if update.effective_chat.type == "private":
-        return True
-    
-    user = update.effective_user
-    chat_id = update.effective_chat.id
-    
-    # 2. Xóa tin nhắn lệnh ngay lập tức
-    try: await update.message.delete()
-    except: pass
-    
-    # --- LOGIC CHỐNG SPAM ---
-    user_id = user.id
-    now = time.time()
-    
-    # Tạo hồ sơ nếu chưa có
-    if user_id not in SPAM_TRACKER:
-        SPAM_TRACKER[user_id] = []
-        
-    # Lọc bỏ các lần spam cũ quá 10 giây trước
-    SPAM_TRACKER[user_id] = [t for t in SPAM_TRACKER[user_id] if now - t < 10]
-    
-    # Ghi nhận lần spam này
-    SPAM_TRACKER[user_id].append(now)
-    
-    # Nếu spam quá 3 lần trong 10 giây -> MUTE 5 PHÚT
-    if len(SPAM_TRACKER[user_id]) >= 3:
-        try:
-            # Mute 5 phút (300 giây)
-            await context.bot.restrict_chat_member(
-                chat_id=chat_id,
-                user_id=user_id,
-                permissions=ChatPermissions(can_send_messages=False),
-                until_date=now + 300 
-            )
-            
-            # Thông báo trừng phạt
-            msg = await context.bot.send_message(chat_id, f"🚫 <b>{user.first_name}</b> spam quá nhiều! Bị cấm chat 5 phút.", parse_mode="HTML")
-            
-            # Reset bộ đếm để tránh mute chồng
-            SPAM_TRACKER[user_id] = []
-            
-            # Xóa thông báo sau 10s
-            await asyncio.sleep(10)
-            try: 
-                await msg.delete()
-            except: 
-                pass
-            
-        except Exception as e:
-            # Nếu Bot không có quyền Admin thì chỉ cảnh báo
-            msg = await context.bot.send_message(chat_id, f"⚠️ Đừng spam nữa {user.first_name}!")
-            await asyncio.sleep(3)
-            
-            # --- ĐOẠN ĐÃ SỬA LỖI ---
-            try: 
-                await msg.delete()
-            except: 
-                pass
-            # -----------------------
-            
-        return False
-
-    # Nếu chưa đến mức bị Mute thì chỉ nhắc nhở nhẹ
-    if len(SPAM_TRACKER[user_id]) == 1:
-        msg = await update.message.reply_text(f"🤫 {user.first_name}, qua nhắn riêng với Bot nhé!")
-        await asyncio.sleep(5)
-        try: 
-            await msg.delete()
-        except: 
-            pass
-    
-    return False
 # --- CÁC LỆNH BOT ---
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1029,6 +954,7 @@ def get_review():
         "Trà trái cây tươi mát, uống là nghiền. Sẽ quay lại!"
     ])
     return {"content": content}
+
 
 
 
