@@ -976,19 +976,31 @@ bot_app.add_handler(CommandHandler("diemdanh", daily_command)) # <--- Mới
 bot_app.add_handler(CommandHandler("shop", shop_command))      # <--- Mới
 bot_app.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, web_app_data_handler))
 
+# --- TÌM VÀ THAY THẾ TOÀN BỘ HÀM lifespan Ở CUỐI FILE main.py ---
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await bot_app.initialize()
-    await bot_app.start()
+    print("🚀 Đang khởi động Bot...")
     
-    # 1. Xóa MenuButton cũ (nếu có) để quay về nút "Menu" mặc định
+    # 1. Khởi tạo ứng dụng Bot
+    await bot_app.initialize()
+
+    # 2. QUAN TRỌNG: Xóa Webhook và Dừng cập nhật cũ để tránh Conflict
+    # Dòng này giúp đá văng các "bóng ma" bot cũ ra khỏi mạng
+    try:
+        await bot_app.bot.delete_webhook(drop_pending_updates=True) 
+    except Exception as e:
+        print(f"⚠️ Cảnh báo Webhook: {e}")
+
+    # 3. Khởi động Bot
+    await bot_app.start()
+
+    # 4. Cài đặt Menu
     from telegram import MenuButtonCommands
     await bot_app.bot.set_chat_menu_button(menu_button=MenuButtonCommands())
-
-    # 2. Cài đặt lại danh sách lệnh khi bấm vào nút Menu
     await bot_app.bot.set_my_commands([
+        BotCommand("order", "⚡ Mở Menu Order"), # Lệnh quan trọng nhất
         BotCommand("start", "🏠 Về Menu chính"),
-        BotCommand("order", "⚡ Mở Menu Order"),
         BotCommand("me", "💳 Ví & Thẻ"),
         BotCommand("game", "🎰 Chơi Game"),
         BotCommand("diemdanh", "📅 Điểm danh"),
@@ -997,9 +1009,16 @@ async def lifespan(app: FastAPI):
         BotCommand("top", "🏆 BXH"),
     ])
     
-    asyncio.create_task(bot_app.updater.start_polling())
-    print("✅ Bot đã khởi động với Menu chuẩn...")
-    yield
+    # 5. Chạy Polling (Lắng nghe tin nhắn)
+    # allowed_updates=Update.ALL_TYPES giúp bot nhận mọi loại tin (text, button, webapp...)
+    await bot_app.updater.start_polling(drop_pending_updates=True, allowed_updates=Update.ALL_TYPES)
+    
+    print("✅ Bot đã Online và sẵn sàng nhận lệnh!")
+    
+    yield # --- Server hoạt động tại đây ---
+
+    # 6. Khi tắt Server -> Tắt Bot sạch sẽ
+    print("🛑 Đang tắt Bot...")
     await bot_app.updater.stop()
     await bot_app.stop()
     await bot_app.shutdown()
@@ -1038,6 +1057,7 @@ def get_review():
         "Trà trái cây tươi mát, uống là nghiền. Sẽ quay lại!"
     ])
     return {"content": content}
+
 
 
 
