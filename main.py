@@ -1522,40 +1522,42 @@ async def resolve_rps_match(context: ContextTypes.DEFAULT_TYPE, msg_id: int, mat
     del ACTIVE_RPS_MATCHES[msg_id]
     db.close()
 
-# --- WEB & MAIN ---
-bot_app = Application.builder().token(TOKEN).build()
+# === ĐĂNG KÝ HANDLERS ===
+
 bot_app.add_handler(CommandHandler("start", start_command))
 bot_app.add_handler(CommandHandler("me", me_command))
 bot_app.add_handler(CommandHandler("top", top_command))
-bot_app.add_handler(CommandHandler("qr", qr_command)) # Đã thêm lệnh QR
+bot_app.add_handler(CommandHandler("qr", qr_command))
 bot_app.add_handler(CommandHandler("admin", admin_dashboard))
 bot_app.add_handler(CommandHandler("thong_bao", broadcast_command))
 bot_app.add_handler(CommandHandler("view_review", handle_admin_logic))
 bot_app.add_handler(CommandHandler("reset_review", handle_admin_logic))
 bot_app.add_handler(MessageHandler(filters.Regex(r"^/(tip|fine|del|tipxu|finex)_"), quick_action_handler))
 bot_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_admin_logic))
-bot_app.add_handler(CommandHandler("game", game_ui_command))     # Lệnh mở Menu
-bot_app.add_handler(CommandHandler("tx", game_ui_command))       # Lối tắt cho TX
-bot_app.add_handler(CommandHandler("pk", game_ui_command))       # Lối tắt cho PK
-bot_app.add_handler(CallbackQueryHandler(order_button_callback, pattern="^(cancel_order_|pos_done)"))
-bot_app.add_handler(CallbackQueryHandler(handle_game_buttons))   # Xử lý toàn bộ nút bấm
-bot_app.add_handler(CommandHandler("diemdanh", daily_command)) # <--- Mới
-bot_app.add_handler(CommandHandler("shop", shop_command))      # <--- Mới
+bot_app.add_handler(CommandHandler("game", game_ui_command))
+bot_app.add_handler(CommandHandler("tx", game_ui_command))
+bot_app.add_handler(CommandHandler("pk", game_ui_command))
+bot_app.add_handler(CommandHandler("diemdanh", daily_command))
+bot_app.add_handler(CommandHandler("shop", shop_command))
 bot_app.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, web_app_data_handler))
 bot_app.add_handler(CommandHandler("order", order_command))
 bot_app.add_handler(CommandHandler("dangky", dangky_command))
 bot_app.add_handler(CommandHandler("dsnv", dsnv_command))
 bot_app.add_handler(CommandHandler("xoanv", xoanv_command))
 bot_app.add_handler(CommandHandler("slot", slot_command))
+bot_app.add_handler(CommandHandler("rps", rps_command))
+bot_app.add_handler(CommandHandler("kbb", rps_command))
+
+# === CALLBACK HANDLERS - CÓ PATTERN TRƯỚC ===
+bot_app.add_handler(CallbackQueryHandler(order_button_callback, pattern="^(cancel_order_|pos_done)"))
 bot_app.add_handler(CallbackQueryHandler(handle_slot_play, pattern="^slot_play_"))
 bot_app.add_handler(CallbackQueryHandler(handle_slot_menu, pattern="^slot_menu$"))
-bot_app.add_handler(CommandHandler("rps", rps_command))
-bot_app.add_handler(CommandHandler("kbb", rps_command))  # Lối tắt tiếng Việt
 bot_app.add_handler(CallbackQueryHandler(handle_rps_create, pattern="^rps_create_"))
 bot_app.add_handler(CallbackQueryHandler(handle_rps_join, pattern="^rps_join$"))
 bot_app.add_handler(CallbackQueryHandler(handle_rps_choose, pattern="^rps_choose_"))
-bot_app.add_handler(CallbackQueryHandler(lambda u, c: rps_command(u, c), pattern="^rps_menu$"))
 
+# === CALLBACK HANDLER TỔNG QUÁT - ĐỂ CUỐI CÙNG ===
+bot_app.add_handler(CallbackQueryHandler(handle_game_buttons))
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await bot_app.initialize()
@@ -1718,6 +1720,7 @@ def get_review():
         "Trà trái cây tươi mát, uống là nghiền. Sẽ quay lại!"
     ])
     return {"content": content}
+
 
 
 
