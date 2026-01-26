@@ -1898,7 +1898,7 @@ bot_app.add_handler(CommandHandler("xoanv", xoanv_command))
 bot_app.add_handler(CommandHandler("slot", slot_command))
 bot_app.add_handler(CommandHandler("kbb", kbb_command))
 bot_app.add_handler(CommandHandler("gift", gift_command))
-bot_app.add_handler(MessageHandler(filters.MESSAGE_REACTION, handle_reaction))
+bot_app.add_handler(CommandHandler("qua", gift_command))
 # === CALLBACK HANDLERS - CÓ PATTERN TRƯỚC ===
 bot_app.add_handler(CallbackQueryHandler(order_button_callback, pattern="^(cancel_order_|pos_done)"))
 bot_app.add_handler(CallbackQueryHandler(handle_slot_play, pattern="^slot_play_"))
