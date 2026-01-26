@@ -47,6 +47,9 @@ class Employee(Base):
     balance = Column(Float, default=0.0)    # Tiền Lương (VND)
     coin = Column(Float, default=0.0)       # Tiền Game (Xu) - MỚI
     last_daily = Column(DateTime, nullable=True) # Thời gian điểm danh gần nhất - MỚI
+    last_checkin = Column(Date, nullable=True)
+    checkin_streak = Column(Integer, default=0)
+    last_gift_open = Column(Date, nullable=True)
 
 # --- THÊM BẢNG LỊCH SỬ ĐỔI QUÀ (SHOP) ---
 class ShopLog(Base):
@@ -60,3 +63,4 @@ class ShopLog(Base):
 
 def init_db():
     Base.metadata.create_all(bind=engine)
+
