@@ -4,6 +4,15 @@ import asyncio
 import io
 import time
 import json
+from staff_sheet import (
+    get_staff_by_pin, 
+    get_staff_by_telegram, 
+    get_staff_by_phone,
+    register_staff, 
+    delete_staff, 
+    get_all_staff,
+    get_staff_count
+)
 from pydantic import BaseModel
 from typing import List, Optional
 from contextlib import asynccontextmanager
@@ -198,14 +207,6 @@ async def handle_game_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
     try:
         await query.answer()
     except: pass
-
-    if data == "pos_done":
-        # Khi thu ngân bấm, sửa tin nhắn thêm chữ [ĐÃ XỬ LÝ] và xóa nút bấm
-        original_text = query.message.text_html
-        new_text = f"<s>{original_text}</s>\n\n✅ <b>THU NGÂN ĐÃ NHẬP MÁY</b>"
-        await query.edit_message_text(text=new_text, parse_mode="HTML", reply_markup=None)
-        await query.answer("Đã đánh dấu hoàn thành!")
-        return
 
     # --- NHÓM 1: ĐIỀU HƯỚNG ---
     if data == "close_menu":
@@ -949,6 +950,130 @@ async def web_app_data_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     except Exception as e:
         print(f"Lỗi WebApp Data: {e}")
 
+# --- LỆNH ĐĂNG KÝ NHÂN VIÊN ---
+async def dangky_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    text = update.message.text.strip()
+    
+    # Hướng dẫn nếu thiếu tham số
+    parts = text.split(maxsplit=2)
+    if len(parts) < 3:
+        await update.message.reply_text(
+            "📝 <b>ĐĂNG KÝ NHÂN VIÊN</b>\n\n"
+            "Cú pháp: <code>/dangky Tên SĐT</code>\n\n"
+            "Ví dụ: <code>/dangky Lan 0901234567</code>\n\n"
+            "⚠️ Lưu ý:\n"
+            "• Tên không có dấu cách (dùng _ nếu cần)\n"
+            "• SĐT phải là số điện thoại hợp lệ",
+            parse_mode="HTML"
+        )
+        return
+    
+    name = parts[1]
+    phone = parts[2]
+    
+    # Validate SĐT
+    if not phone.isdigit() or len(phone) < 9:
+        await update.message.reply_text("❌ SĐT không hợp lệ! Vui lòng nhập số điện thoại đúng.")
+        return
+    
+    # Đăng ký
+    success, message, pin = register_staff(name, phone, str(user.id))
+    
+    if success:
+        await update.message.reply_text(
+            f"✅ <b>{message}</b>\n\n"
+            f"👤 Tên: {name}\n"
+            f"📱 SĐT: {phone}\n"
+            f"🔑 Mã PIN: <code>{pin}</code>\n\n"
+            f"📲 Dùng mã PIN này để đăng nhập webapp order.\n"
+            f"🔗 Link: {WEB_URL}/order",
+            parse_mode="HTML"
+        )
+    else:
+        await update.message.reply_text(f"❌ {message}")
+
+
+# --- LỆNH XEM DANH SÁCH NHÂN VIÊN (ADMIN) ---
+async def dsnv_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if str(update.effective_user.id) != ADMIN_ID:
+        return
+    
+    staff_list = get_all_staff()
+    
+    if not staff_list:
+        await update.message.reply_text("📋 Chưa có nhân viên nào đăng ký.")
+        return
+    
+    msg = "📋 <b>DANH SÁCH NHÂN VIÊN</b>\n"
+    msg += "━━━━━━━━━━━━━━━━━━\n"
+    
+    for i, s in enumerate(staff_list, 1):
+        tg_status = "✅" if s.get("Telegram_ID") else "❌"
+        msg += f"{i}. <b>{s.get('Tên')}</b>\n"
+        msg += f"   PIN: <code>{s.get('PIN')}</code> | SĐT: {s.get('SĐT')} {tg_status}\n"
+    
+    msg += f"\n📊 Tổng: {len(staff_list)} nhân viên"
+    
+    await update.message.reply_text(msg, parse_mode="HTML")
+
+
+# --- LỆNH XÓA NHÂN VIÊN (ADMIN) ---
+async def xoanv_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if str(update.effective_user.id) != ADMIN_ID:
+        return
+    
+    if not context.args:
+        await update.message.reply_text(
+            "Cú pháp: <code>/xoanv [PIN]</code>\n"
+            "Ví dụ: <code>/xoanv 1234</code>",
+            parse_mode="HTML"
+        )
+        return
+    
+    pin = context.args[0]
+    success, message = delete_staff(pin)
+    
+    await update.message.reply_text(f"{'✅' if success else '❌'} {message}")
+
+
+# --- CALLBACK HỦY ĐƠN VÀ ĐÃ NHẬP MÁY ---
+async def order_button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    user_id = query.from_user.id
+    data = query.data
+    
+    # Xử lý nút HỦY ĐƠN
+    if data.startswith("cancel_order_"):
+        allowed_user_id = int(data.replace("cancel_order_", ""))
+        
+        # Kiểm tra người bấm
+        if user_id != allowed_user_id:
+            # Im lặng, không phản hồi
+            await query.answer()
+            return
+        
+        # Đúng người → Xóa tin nhắn
+        try:
+            await query.message.delete()
+            await query.answer("✅ Đã hủy đơn!")
+        except Exception as e:
+            await query.answer(f"Lỗi: {e}", show_alert=True)
+        return
+    
+    # Xử lý nút ĐÃ NHẬP MÁY (giữ nguyên logic cũ nhưng xóa nút Hủy)
+    if data == "pos_done":
+        original_text = query.message.text_html if query.message.text_html else query.message.text
+        new_text = f"{original_text}\n\n✅ <b>Đã nhập máy</b>"
+        
+        try:
+            await query.message.edit_text(text=new_text, parse_mode="HTML", reply_markup=None)
+            await query.answer("✅ Đã xác nhận!")
+        except:
+            await query.answer("Đã xử lý!")
+        return
+
+
 # --- WEB & MAIN ---
 bot_app = Application.builder().token(TOKEN).build()
 bot_app.add_handler(CommandHandler("start", start_command))
@@ -964,11 +1089,15 @@ bot_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_admin
 bot_app.add_handler(CommandHandler("game", game_ui_command))     # Lệnh mở Menu
 bot_app.add_handler(CommandHandler("tx", game_ui_command))       # Lối tắt cho TX
 bot_app.add_handler(CommandHandler("pk", game_ui_command))       # Lối tắt cho PK
+bot_app.add_handler(CallbackQueryHandler(order_button_callback, pattern="^(cancel_order_|pos_done)"))
 bot_app.add_handler(CallbackQueryHandler(handle_game_buttons))   # Xử lý toàn bộ nút bấm
 bot_app.add_handler(CommandHandler("diemdanh", daily_command)) # <--- Mới
 bot_app.add_handler(CommandHandler("shop", shop_command))      # <--- Mới
 bot_app.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, web_app_data_handler))
 bot_app.add_handler(CommandHandler("order", order_command))
+bot_app.add_handler(CommandHandler("dangky", dangky_command))
+bot_app.add_handler(CommandHandler("dsnv", dsnv_command))
+bot_app.add_handler(CommandHandler("xoanv", xoanv_command))
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -981,14 +1110,15 @@ async def lifespan(app: FastAPI):
 
     # 2. Cài đặt lại danh sách lệnh khi bấm vào nút Menu
     await bot_app.bot.set_my_commands([
-        BotCommand("start", "🏠 Về Menu chính"),
-        BotCommand("me", "💳 Ví & Thẻ"),
-        BotCommand("game", "🎰 Chơi Game"),
-        BotCommand("diemdanh", "📅 Điểm danh"),
-        BotCommand("shop", "🛒 Shop quà"),
-        BotCommand("qr", "🚀 Lấy mã QR"),
-        BotCommand("top", "🏆 BXH"),
-    ])
+    BotCommand("start", "🏠 Về Menu chính"),
+    BotCommand("dangky", "📝 Đăng ký nhân viên"),  # <-- THÊM
+    BotCommand("me", "💳 Ví & Thẻ"),
+    BotCommand("game", "🎰 Chơi Game"),
+    BotCommand("diemdanh", "📅 Điểm danh"),
+    BotCommand("shop", "🛒 Shop quà"),
+    BotCommand("qr", "🚀 Lấy mã QR"),
+    BotCommand("top", "🏆 BXH"),
+])
     
     asyncio.create_task(bot_app.updater.start_polling())
     print("✅ Bot đã khởi động với Menu chuẩn...")
@@ -1039,16 +1169,33 @@ class OrderItem(BaseModel):
 class OrderData(BaseModel):
     order_id: str
     customer: str
-    staff_name: str  # Tên nhân viên order
+    staff_name: str
+    staff_pin: str  # <-- THÊM DÒNG NÀY
     items: List[OrderItem]
     total: int
+
 
 @app.post("/api/submit_order")
 async def submit_order(order: OrderData):
     try:
-        # Định dạng tin nhắn giống như web_app_data_handler
-        msg = f"🔔 <b>ĐƠN: {order.customer.upper()}</b> (từ {order.staff_name})\n"
-        msg += "━━━━━━━━━━━━━━━━━━\n"
+        # Kiểm tra nhân viên đã đăng ký Telegram chưa
+        staff = get_staff_by_pin(order.staff_pin)
+        
+        if not staff:
+            return {"success": False, "message": "PIN không hợp lệ!"}
+        
+        staff_telegram_id = staff.get("Telegram_ID")
+        
+        if not staff_telegram_id:
+            return {
+                "success": False, 
+                "message": f"Vui lòng đăng ký Telegram trước!\n\nMở bot và gửi:\n/dangky {order.staff_name} [SĐT của bạn]"
+            }
+        
+        staff_name = staff.get("Tên")
+        
+        # Tạo nội dung tin nhắn
+        msg = f"🔔 <b>ĐƠN: {order.customer.upper()}</b> (từ {staff_name})\n"
         
         for item in order.items:
             extra = []
@@ -1059,14 +1206,15 @@ async def submit_order(order: OrderData):
             
             detail = f" ({', '.join(extra)})" if extra else ""
             msg += f"• {item.qty}x <b>{item.name}</b>{detail}\n"
-        
-        msg += f"━━━━━━━━━━━━━━━━━━\n"
-        msg += f"💰 <b>TỔNG: {order.total/1000:,.0f}k</b>"
 
-        # Nút bấm để thu ngân xác nhận
-        kb = [[InlineKeyboardButton("✅ ĐÃ NHẬP MÁY", callback_data="pos_done")]]
+        # Nút bấm: HỦY (chỉ người tạo), ĐÃ NHẬP MÁY (ai cũng được)
+        kb = [
+            [
+                InlineKeyboardButton("❌ HỦY", callback_data=f"cancel_order_{staff_telegram_id}"),
+                InlineKeyboardButton("✅ ĐÃ NHẬP MÁY", callback_data="pos_done")
+            ]
+        ]
         
-        # Gửi về group
         await bot_app.bot.send_message(
             chat_id=MAIN_GROUP_ID, 
             text=msg, 
@@ -1075,9 +1223,32 @@ async def submit_order(order: OrderData):
         )
         
         return {"success": True, "message": "Đã gửi order thành công!"}
+        
     except Exception as e:
         return {"success": False, "message": str(e)}
-
+    
+@app.post("/api/verify_pin")
+async def verify_pin(request: Request):
+    try:
+        data = await request.json()
+        pin = str(data.get("pin", ""))
+        
+        staff = get_staff_by_pin(pin)
+        
+        if not staff:
+            return {"success": False, "message": "Mã PIN không tồn tại!"}
+        
+        return {
+            "success": True,
+            "staff": {
+                "name": staff.get("Tên"),
+                "phone": staff.get("SĐT"),
+                "pin": pin
+            }
+        }
+    except Exception as e:
+        return {"success": False, "message": str(e)}
+    
 @app.get("/api/get_review")
 def get_review():
     db = SessionLocal()
