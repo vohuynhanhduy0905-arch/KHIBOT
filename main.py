@@ -200,7 +200,7 @@ async def game_ui_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
      ],
      [
          InlineKeyboardButton("🥊 PK Xúc Xắc", callback_data="menu_pk"),
-         InlineKeyboardButton("✂️ Kéo Búa Bao", callback_data="rps_menu")
+         InlineKeyboardButton("✂️ Kéo Búa Bao", callback_data="kbb_menu")
      ],
      [InlineKeyboardButton("❌ Đóng", callback_data="close_menu")]
  ]
@@ -269,7 +269,13 @@ async def handle_game_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
             ], 
             [InlineKeyboardButton("❌ Đóng", callback_data="close_menu")]
         ]
-        if data == "rps_menu":
+        [InlineKeyboardButton("🔙 Quay lại", callback_data="back_home")]
+        ]
+        
+        await query.edit_message_text(txt, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
+        return
+
+    if data == "kbb_menu":
         if chat_type != "private":
             await query.answer("✂️ Vào chat riêng với Bot để chơi!", show_alert=True)
             return
@@ -285,12 +291,12 @@ async def handle_game_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
         
         kb = [
             [
-                InlineKeyboardButton("10k Xu", callback_data="rps_create_10000"),
-                InlineKeyboardButton("20k Xu", callback_data="rps_create_20000")
+                InlineKeyboardButton("10k Xu", callback_data="kbb_create_10000"),
+                InlineKeyboardButton("20k Xu", callback_data="kbb_create_20000")
             ],
             [
-                InlineKeyboardButton("50k Xu", callback_data="rps_create_50000"),
-                InlineKeyboardButton("100k Xu", callback_data="rps_create_100000")
+                InlineKeyboardButton("50k Xu", callback_data="kbb_create_50000"),
+                InlineKeyboardButton("100k Xu", callback_data="kbb_create_100000")
             ],
             [InlineKeyboardButton("🔙 Quay lại", callback_data="back_home")]
         ]
@@ -1584,20 +1590,20 @@ async def handle_slot_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # GAME 2: KÉO BÚA BAO (PvP)
 # ==========================================
 
-RPS_CHOICES = {
-    "rps_rock": ("✊", "Búa"),
-    "rps_paper": ("✋", "Bao"),
-    "rps_scissors": ("✌️", "Kéo")
+KBB_CHOICES = {
+    "kbb_rock": ("✊", "Búa"),
+    "kbb_paper": ("✋", "Bao"),
+    "kbb_scissors": ("✌️", "Kéo")
 }
 
 RPS_RULES = {
-    "rps_rock": "rps_scissors",     # Búa thắng Kéo
-    "rps_scissors": "rps_paper",    # Kéo thắng Bao
-    "rps_paper": "rps_rock"         # Bao thắng Búa
+    "kbb_rock": "kbb_scissors",     # Búa thắng Kéo
+    "kbb_scissors": "kbb_paper",    # Kéo thắng Bao
+    "kbb_paper": "kbb_rock"         # Bao thắng Búa
 }
 
 
-async def rps_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def kbb_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Hiển thị menu Kéo Búa Bao"""
     user = update.effective_user
     chat_type = update.effective_chat.type
@@ -1618,12 +1624,12 @@ async def rps_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     kb = [
         [
-            InlineKeyboardButton("10k Xu", callback_data="rps_create_10000"),
-            InlineKeyboardButton("20k Xu", callback_data="rps_create_20000")
+            InlineKeyboardButton("10k Xu", callback_data="kbb_create_10000"),
+            InlineKeyboardButton("20k Xu", callback_data="kbb_create_20000")
         ],
         [
-            InlineKeyboardButton("50k Xu", callback_data="rps_create_50000"),
-            InlineKeyboardButton("100k Xu", callback_data="rps_create_100000")
+            InlineKeyboardButton("50k Xu", callback_data="kbb_create_50000"),
+            InlineKeyboardButton("100k Xu", callback_data="kbb_create_100000")
         ],
         [InlineKeyboardButton("❌ Đóng", callback_data="close_menu")]
     ]
@@ -1631,13 +1637,13 @@ async def rps_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(txt, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
 
 
-async def handle_rps_create(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def handle_kbb_create(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Tạo kèo Kéo Búa Bao"""
     query = update.callback_query
     user = query.from_user
     data = query.data
     
-    amount = int(data.replace("rps_create_", ""))
+    amount = int(data.replace("kbb_create_", ""))
     
     db = SessionLocal()
     emp = db.query(Employee).filter(Employee.telegram_id == str(user.id)).first()
@@ -1659,7 +1665,7 @@ async def handle_rps_create(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"👇 Ai dám nhận?"
     )
     
-    kb = [[InlineKeyboardButton("✊ NHẬN KÈO", callback_data="rps_join")]]
+    kb = [[InlineKeyboardButton("✊ NHẬN KÈO", callback_data="kbb_join")]]
     
     try:
         sent_msg = await context.bot.send_message(
@@ -1686,7 +1692,7 @@ async def handle_rps_create(update: Update, context: ContextTypes.DEFAULT_TYPE):
     db.close()
 
 
-async def handle_rps_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def handle_kbb_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Nhận kèo Kéo Búa Bao"""
     query = update.callback_query
     user = query.from_user
@@ -1733,9 +1739,9 @@ async def handle_rps_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Gửi tin nhắn riêng cho cả 2 người chọn
     choice_kb = [
         [
-            InlineKeyboardButton("✊ Búa", callback_data=f"rps_choose_rock_{msg_id}"),
-            InlineKeyboardButton("✋ Bao", callback_data=f"rps_choose_paper_{msg_id}"),
-            InlineKeyboardButton("✌️ Kéo", callback_data=f"rps_choose_scissors_{msg_id}")
+            InlineKeyboardButton("✊ Búa", callback_data=f"kbb_choose_rock_{msg_id}"),
+            InlineKeyboardButton("✋ Bao", callback_data=f"kbb_choose_paper_{msg_id}"),
+            InlineKeyboardButton("✌️ Kéo", callback_data=f"kbb_choose_scissors_{msg_id}")
         ]
     ]
     
@@ -1762,14 +1768,14 @@ async def handle_rps_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer("✅ Đã nhận kèo! Check tin nhắn riêng để chọn!")
 
 
-async def handle_rps_choose(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def handle_kbb_choose(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Xử lý khi người chơi chọn Kéo/Búa/Bao"""
     query = update.callback_query
     user = query.from_user
-    data = query.data  # rps_choose_rock_12345
+    data = query.data  # kbb_choose_rock_12345
     
     parts = data.split("_")
-    choice = f"rps_{parts[2]}"  # rps_rock, rps_paper, rps_scissors
+    choice = f"kbb_{parts[2]}"  # kbb_rock, kbb_paper, kbb_scissors
     msg_id = int(parts[3])
     
     match = ACTIVE_RPS_MATCHES.get(msg_id)
@@ -1802,7 +1808,7 @@ async def handle_rps_choose(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await resolve_rps_match(context, msg_id, match)
 
 
-async def resolve_rps_match(context: ContextTypes.DEFAULT_TYPE, msg_id: int, match: dict):
+async def resolve_kbb_match(context: ContextTypes.DEFAULT_TYPE, msg_id: int, match: dict):
     """Xử lý kết quả trận đấu"""
     db = SessionLocal()
     
@@ -1896,16 +1902,16 @@ bot_app.add_handler(CommandHandler("dangky", dangky_command))
 bot_app.add_handler(CommandHandler("dsnv", dsnv_command))
 bot_app.add_handler(CommandHandler("xoanv", xoanv_command))
 bot_app.add_handler(CommandHandler("slot", slot_command))
-bot_app.add_handler(CommandHandler("kbb", rps_command))
+bot_app.add_handler(CommandHandler("kbb", kbb_command))
 bot_app.add_handler(CommandHandler("gift", gift_command))
 bot_app.add_handler(MessageHandler(filters.MESSAGE_REACTION, handle_reaction))
 # === CALLBACK HANDLERS - CÓ PATTERN TRƯỚC ===
 bot_app.add_handler(CallbackQueryHandler(order_button_callback, pattern="^(cancel_order_|pos_done)"))
 bot_app.add_handler(CallbackQueryHandler(handle_slot_play, pattern="^slot_play_"))
 bot_app.add_handler(CallbackQueryHandler(handle_slot_menu, pattern="^slot_menu$"))
-bot_app.add_handler(CallbackQueryHandler(handle_rps_create, pattern="^rps_create_"))
-bot_app.add_handler(CallbackQueryHandler(handle_rps_join, pattern="^rps_join$"))
-bot_app.add_handler(CallbackQueryHandler(handle_rps_choose, pattern="^rps_choose_"))
+bot_app.add_handler(CallbackQueryHandler(handle_kbb_create, pattern="^kbb_create_"))
+bot_app.add_handler(CallbackQueryHandler(handle_kbb_join, pattern="^kbb_join$"))
+bot_app.add_handler(CallbackQueryHandler(handle_kbb_choose, pattern="^kbb_choose_"))
 
 # === CALLBACK HANDLER TỔNG QUÁT - ĐỂ CUỐI CÙNG ===
 bot_app.add_handler(CallbackQueryHandler(handle_game_buttons))
@@ -2126,6 +2132,7 @@ def get_review():
         "Trà trái cây tươi mát, uống là nghiền. Sẽ quay lại!"
     ])
     return {"content": content}
+
 
 
 
