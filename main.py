@@ -267,9 +267,7 @@ async def handle_game_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
                 InlineKeyboardButton("⚡ 50k Xu", callback_data="pk_create_50000"), 
                 InlineKeyboardButton("⚡ 100k Xu", callback_data="pk_create_100000")
             ], 
-            [InlineKeyboardButton("❌ Đóng", callback_data="close_menu")]
-        ]
-        [InlineKeyboardButton("🔙 Quay lại", callback_data="back_home")]
+            [InlineKeyboardButton("🔙 Quay lại", callback_data="back_home")]
         ]
         
         await query.edit_message_text(txt, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
@@ -304,10 +302,6 @@ async def handle_game_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
         await query.edit_message_text(txt, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
         return
 
-        
-        # Sửa tin nhắn hiện tại thành Menu chọn tiền
-        await query.edit_message_text(txt, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
-        return
 
     if data.startswith("buy_salary_"):
         # Lấy số tiền muốn đổi từ data (buy_salary_1000)
@@ -2132,6 +2126,7 @@ def get_review():
         "Trà trái cây tươi mát, uống là nghiền. Sẽ quay lại!"
     ])
     return {"content": content}
+
 
 
 
