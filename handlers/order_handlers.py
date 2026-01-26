@@ -1,14 +1,13 @@
 # --- FILE: handlers/order_handlers.py ---
 # Xử lý order từ webapp
 
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from telegram.ext import ContextTypes
 from pydantic import BaseModel
 from typing import List
 
-from config import MAIN_GROUP_ID, ORDER_TOPIC_ID
+from config import MAIN_GROUP_ID, ORDER_TOPIC_ID, WEB_URL
 from staff_sheet import get_staff_by_pin
-from utils import log_order, log_error_with_context
 
 
 # ==========================================
@@ -36,13 +35,27 @@ class OrderData(BaseModel):
 
 
 # ==========================================
+# /order - Gọi menu order trong nhóm
+# ==========================================
+
+async def order_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Gọi menu order trong nhóm"""
+    kb = [
+        [InlineKeyboardButton("⚡ MỞ MENU ORDER ⚡", web_app=WebAppInfo(url=f"{WEB_URL}/webapp"))]
+    ]
+    await update.message.reply_text(
+        "👇 Bấm vào nút bên dưới để lên đơn nhé:", 
+        reply_markup=InlineKeyboardMarkup(kb)
+    )
+
+
+# ==========================================
 # API SUBMIT ORDER
 # ==========================================
 
 async def submit_order(order: OrderData, bot):
     """Xử lý submit order từ webapp"""
     try:
-        # Kiểm tra nhân viên đã đăng ký Telegram chưa
         staff = get_staff_by_pin(order.staff_pin)
         
         if not staff:
@@ -58,7 +71,6 @@ async def submit_order(order: OrderData, bot):
         
         staff_name = staff.get("Tên")
         
-        # Tạo nội dung tin nhắn
         msg = f"🔔 <b>ĐƠN: {order.customer.upper()}</b> (từ {staff_name})\n"
         
         for item in order.items:
@@ -71,7 +83,6 @@ async def submit_order(order: OrderData, bot):
             detail = f" ({', '.join(extra)})" if extra else ""
             msg += f"• {item.qty}x <b>{item.name}</b>{detail}\n"
         
-        # Nút bấm
         kb = [
             [
                 InlineKeyboardButton("❌ HỦY", callback_data=f"cancel_order_{staff_telegram_id}"),
@@ -87,13 +98,9 @@ async def submit_order(order: OrderData, bot):
             parse_mode="HTML"
         )
         
-        # Log
-        log_order(staff_name, order.customer, order.total, len(order.items))
-        
         return {"success": True, "message": "Đã gửi order thành công!"}
         
     except Exception as e:
-        log_error_with_context(e, "Submit order")
         return {"success": False, "message": str(e)}
 
 
@@ -108,15 +115,12 @@ async def order_button_callback(update: Update, context: ContextTypes.DEFAULT_TY
     data = query.data
     
     if data.startswith("cancel_order_"):
-        # Lấy telegram_id được phép hủy
         allowed_user_id = data.replace("cancel_order_", "")
         
-        # Kiểm tra quyền
         if str(user.id) != allowed_user_id:
-            await query.answer()  # Silent - không thông báo gì
+            await query.answer()
             return
         
-        # Xóa tin nhắn order
         try:
             await query.message.delete()
             await query.answer("✅ Đã hủy đơn!")
@@ -124,9 +128,7 @@ async def order_button_callback(update: Update, context: ContextTypes.DEFAULT_TY
             await query.answer("⚠️ Không thể hủy đơn này!", show_alert=True)
     
     elif data == "pos_done":
-        # Ai cũng có thể bấm "Đã nhập máy"
         try:
-            # Sửa tin nhắn - xóa nút bấm
             old_text = query.message.text or query.message.caption or ""
             new_text = old_text + f"\n\n✅ Đã nhập máy"
             

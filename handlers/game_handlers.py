@@ -6,12 +6,9 @@ import asyncio
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
-from config import (
-    MAIN_GROUP_ID, GAME_TOPIC_ID, 
-    KBB_CHOICES, KBB_RULES, GAME_BET_AMOUNTS
-)
+from config import MAIN_GROUP_ID, GAME_TOPIC_ID, KBB_CHOICES, KBB_RULES
 from database import SessionLocal, Employee
-from utils import get_db, log_game, log_error_with_context
+from handlers.user_handlers import check_private
 
 # Lưu trận đấu đang diễn ra
 ACTIVE_PK_MATCHES = {}
@@ -22,24 +19,12 @@ ACTIVE_KBB_MATCHES = {}
 # MENU GAME CHÍNH
 # ==========================================
 
-async def show_game_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def game_ui_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Hiển thị menu game chính"""
-    chat_type = update.effective_chat.type
-    user = update.effective_user
-    
-    if chat_type != "private":
-        try: 
-            await update.message.delete()
-        except: 
-            pass
-        msg = await update.message.reply_text(f"⚠️ {user.first_name} ơi, qua nhắn riêng với Bot để chơi nhé!")
-        await asyncio.sleep(5)
-        try: 
-            await msg.delete()
-        except: 
-            pass
+    if not await check_private(update, context): 
         return
-
+    
+    user = update.effective_user
     msg = f"🎰 <b>TRUNG TÂM GIẢI TRÍ</b> 🎰\nChào <b>{user.full_name}</b>, đại gia muốn chơi gì?"
     keyboard = [
         [
@@ -55,41 +40,15 @@ async def show_game_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(msg, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
 
 
-async def handle_back_to_menu(query, user):
-    """Quay lại menu game chính"""
-    msg = f"🎰 <b>TRUNG TÂM GIẢI TRÍ</b> 🎰\nChào <b>{user.full_name}</b>, đại gia muốn chơi gì?"
-    keyboard = [
-        [
-            InlineKeyboardButton("🎲 Tài Xỉu", callback_data="menu_tx"),
-            InlineKeyboardButton("🎰 Slot", callback_data="slot_menu")
-        ],
-        [
-            InlineKeyboardButton("🥊 PK Xúc Xắc", callback_data="menu_pk"),
-            InlineKeyboardButton("✂️ Kéo Búa Bao", callback_data="kbb_menu")
-        ],
-        [InlineKeyboardButton("❌ Đóng", callback_data="close_menu")]
-    ]
-    await query.edit_message_text(msg, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
-
-
 # ==========================================
 # SLOT MACHINE
 # ==========================================
 
 async def slot_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Hiển thị menu Slot Machine"""
-    user = update.effective_user
-    chat_type = update.effective_chat.type
-    
-    if chat_type != "private":
-        await update.message.reply_text("🎰 Vào chat riêng với Bot để chơi Slot nhé!")
+    if not await check_private(update, context): 
         return
     
-    await show_slot_menu(update.message, is_edit=False)
-
-
-async def show_slot_menu(message, is_edit=True):
-    """Hiển thị menu chọn mức cược Slot"""
     txt = (
         "🎰 <b>SLOT MACHINE</b> 🎰\n"
         "━━━━━━━━━━━━━━━━\n"
@@ -112,16 +71,36 @@ async def show_slot_menu(message, is_edit=True):
         [InlineKeyboardButton("🔙 Quay lại", callback_data="back_home")]
     ]
     
-    if is_edit:
-        await message.edit_text(txt, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
-    else:
-        await message.reply_text(txt, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
+    await update.message.reply_text(txt, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
 
 
 async def handle_slot_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Callback handler cho slot_menu"""
     query = update.callback_query
-    await show_slot_menu(query.message, is_edit=True)
+    
+    txt = (
+        "🎰 <b>SLOT MACHINE</b> 🎰\n"
+        "━━━━━━━━━━━━━━━━\n"
+        "🎯 Cách chơi: Quay và chờ kết quả!\n"
+        "💎💎💎 = x50 (Jackpot)\n"
+        "⭐⭐⭐ = x20\n"
+        "🍇🍇🍇 = x10\n"
+        "2️⃣ trùng = x1.5\n"
+        "━━━━━━━━━━━━━━━━\n"
+        "🪙 Chọn mức cược:"
+    )
+    
+    kb = [
+        [
+            InlineKeyboardButton("5k", callback_data="slot_play_5000"),
+            InlineKeyboardButton("10k", callback_data="slot_play_10000"),
+            InlineKeyboardButton("20k", callback_data="slot_play_20000"),
+            InlineKeyboardButton("50k", callback_data="slot_play_50000")
+        ],
+        [InlineKeyboardButton("🔙 Quay lại", callback_data="back_home")]
+    ]
+    
+    await query.edit_message_text(txt, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
 
 
 async def handle_slot_play(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -132,43 +111,40 @@ async def handle_slot_play(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     amount = int(data.replace("slot_play_", ""))
     
-    with get_db() as db:
-        emp = db.query(Employee).filter(Employee.telegram_id == str(user.id)).first()
-        
-        if not emp or emp.coin < amount:
-            await query.answer("💸 Không đủ Xu!", show_alert=True)
-            return
-        
-        # Trừ tiền cược
-        emp.coin -= amount
-        db.commit()
-        current_coin = emp.coin
+    db = SessionLocal()
+    emp = db.query(Employee).filter(Employee.telegram_id == str(user.id)).first()
     
-    # Xóa tin nhắn cũ
+    if not emp or emp.coin < amount:
+        await query.answer("💸 Không đủ Xu!", show_alert=True)
+        db.close()
+        return
+    
+    emp.coin -= amount
+    db.commit()
+    current_coin = emp.coin
+    db.close()
+    
     try:
         await query.message.delete()
     except:
         pass
     
-    # Gửi thông báo đang quay
     wait_msg = await context.bot.send_message(
         chat_id=user.id,
         text=f"🎰 Đang quay... (Cược: {amount:,.0f} Xu)"
     )
     
-    # Gửi dice slot với animation
     dice_msg = await context.bot.send_dice(chat_id=user.id, emoji="🎰")
     slot_value = dice_msg.dice.value
     
-    # Chờ animation (3 giây)
     await asyncio.sleep(3)
     
     # Tính kết quả
     winnings = 0
-    if slot_value == 64:  # 777 Jackpot
+    if slot_value == 64:
         winnings = amount * 50
         note = "🎉🎉🎉 <b>JACKPOT 777!</b> x50"
-    elif slot_value == 43:  # Bar x3
+    elif slot_value == 43:
         winnings = amount * 20
         note = "🎊 <b>TRÙNG 3!</b> x20"
     elif slot_value in [1, 22]:
@@ -180,27 +156,22 @@ async def handle_slot_play(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         note = "😢 Không trúng!"
     
-    # Cộng tiền thắng
-    with get_db() as db:
-        emp = db.query(Employee).filter(Employee.telegram_id == str(user.id)).first()
-        if winnings > 0:
-            emp.coin += winnings
-        db.commit()
-        final_coin = emp.coin
+    db = SessionLocal()
+    emp = db.query(Employee).filter(Employee.telegram_id == str(user.id)).first()
+    if winnings > 0:
+        emp.coin += winnings
+    db.commit()
+    final_coin = emp.coin
+    db.close()
     
     profit = winnings - amount
     profit_str = f"+{profit:,.0f}" if profit > 0 else f"{profit:,.0f}"
     
-    # Log game
-    log_game(user.full_name, "SLOT", amount, note, profit)
-    
-    # Xóa tin nhắn chờ
     try:
         await wait_msg.delete()
     except:
         pass
     
-    # Gửi kết quả
     result_msg = (
         f"🎰 <b>KẾT QUẢ SLOT</b>\n"
         f"━━━━━━━━━━━━━━━━\n"
@@ -231,18 +202,9 @@ async def handle_slot_play(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def kbb_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Hiển thị menu Kéo Búa Bao"""
-    user = update.effective_user
-    chat_type = update.effective_chat.type
-    
-    if chat_type != "private":
-        await update.message.reply_text("✂️ Vào chat riêng với Bot để tạo kèo Kéo Búa Bao!")
+    if not await check_private(update, context): 
         return
     
-    await show_kbb_menu(update.message, is_edit=False)
-
-
-async def show_kbb_menu(message, is_edit=True):
-    """Hiển thị menu Kéo Búa Bao"""
     txt = (
         "✂️ <b>KÉO BÚA BAO</b> ✊\n"
         "━━━━━━━━━━━━━━━━\n"
@@ -264,10 +226,7 @@ async def show_kbb_menu(message, is_edit=True):
         [InlineKeyboardButton("🔙 Quay lại", callback_data="back_home")]
     ]
     
-    if is_edit:
-        await message.edit_text(txt, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
-    else:
-        await message.reply_text(txt, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
+    await update.message.reply_text(txt, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
 
 
 async def handle_kbb_create(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -278,18 +237,19 @@ async def handle_kbb_create(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     amount = int(data.replace("kbb_create_", ""))
     
-    with get_db() as db:
-        emp = db.query(Employee).filter(Employee.telegram_id == str(user.id)).first()
-        
-        if not emp or emp.coin < amount:
-            await query.answer("💸 Không đủ Xu!", show_alert=True)
-            return
-        
-        emp_name = emp.name
+    db = SessionLocal()
+    emp = db.query(Employee).filter(Employee.telegram_id == str(user.id)).first()
+    
+    if not emp or emp.coin < amount:
+        await query.answer("💸 Không đủ Xu!", show_alert=True)
+        db.close()
+        return
+    
+    emp_name = emp.name
+    db.close()
     
     await query.edit_message_text(f"✅ Đã gửi thách đấu <b>{amount:,.0f} Xu</b> vào nhóm!", parse_mode="HTML")
     
-    # Gửi vào topic Game
     msg_content = (
         f"✂️ <b>KÉO BÚA BAO</b> ✊\n"
         f"━━━━━━━━━━━━━━━━\n"
@@ -320,7 +280,6 @@ async def handle_kbb_create(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "joiner_choice": None
         }
     except Exception as e:
-        log_error_with_context(e, "Tạo kèo KBB")
         await context.bot.send_message(user.id, f"⚠️ Lỗi: {e}")
 
 
@@ -343,20 +302,20 @@ async def handle_kbb_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer("🚫 Không thể tự chơi với mình!", show_alert=True)
         return
     
-    with get_db() as db:
-        joiner = db.query(Employee).filter(Employee.telegram_id == str(user.id)).first()
-        
-        if not joiner or joiner.coin < match["amount"]:
-            await query.answer("💸 Không đủ Xu!", show_alert=True)
-            return
-        
-        joiner_name = joiner.name
+    db = SessionLocal()
+    joiner = db.query(Employee).filter(Employee.telegram_id == str(user.id)).first()
     
-    # Cập nhật trận đấu
+    if not joiner or joiner.coin < match["amount"]:
+        await query.answer("💸 Không đủ Xu!", show_alert=True)
+        db.close()
+        return
+    
+    joiner_name = joiner.name
+    db.close()
+    
     match["joiner_id"] = str(user.id)
     match["joiner_name"] = joiner_name
     
-    # Cập nhật tin nhắn
     txt = (
         f"✂️ <b>KÉO BÚA BAO</b> ✊\n"
         f"━━━━━━━━━━━━━━━━\n"
@@ -368,7 +327,6 @@ async def handle_kbb_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     await query.edit_message_text(txt, parse_mode="HTML")
     
-    # Gửi tin nhắn riêng cho cả 2 người chọn
     choice_kb = [
         [
             InlineKeyboardButton("✊ Búa", callback_data=f"kbb_choose_rock_{msg_id}"),
@@ -394,7 +352,7 @@ async def handle_kbb_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode="HTML"
         )
     except Exception as e:
-        log_error_with_context(e, "Gửi tin nhắn chọn KBB")
+        print(f"Lỗi gửi tin chọn KBB: {e}")
     
     await query.answer("✅ Đã nhận kèo! Check tin nhắn riêng để chọn!")
 
@@ -403,10 +361,10 @@ async def handle_kbb_choose(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Xử lý khi người chơi chọn Kéo/Búa/Bao"""
     query = update.callback_query
     user = query.from_user
-    data = query.data  # kbb_choose_rock_12345
+    data = query.data
     
     parts = data.split("_")
-    choice = f"kbb_{parts[2]}"  # kbb_rock, kbb_paper, kbb_scissors
+    choice = f"kbb_{parts[2]}"
     msg_id = int(parts[3])
     
     match = ACTIVE_KBB_MATCHES.get(msg_id)
@@ -417,7 +375,6 @@ async def handle_kbb_choose(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(user.id)
     choice_emoji, choice_name = KBB_CHOICES[choice]
     
-    # Lưu lựa chọn
     if user_id == match["creator_id"]:
         if match["creator_choice"]:
             await query.answer("⚠️ Bạn đã chọn rồi!", show_alert=True)
@@ -434,7 +391,6 @@ async def handle_kbb_choose(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer("❌ Bạn không trong trận này!", show_alert=True)
         return
     
-    # Kiểm tra cả 2 đã chọn chưa
     if match["creator_choice"] and match["joiner_choice"]:
         await resolve_kbb_match(context, msg_id, match)
 
@@ -447,7 +403,6 @@ async def resolve_kbb_match(context: ContextTypes.DEFAULT_TYPE, msg_id: int, mat
     j_emoji, j_name = KBB_CHOICES[j_choice]
     amount = match["amount"]
     
-    # Xác định người thắng
     if c_choice == j_choice:
         result = "🤝 HÒA!"
         winner = None
@@ -458,27 +413,22 @@ async def resolve_kbb_match(context: ContextTypes.DEFAULT_TYPE, msg_id: int, mat
         result = f"🏆 <b>{match['joiner_name']}</b> THẮNG!"
         winner = "joiner"
     
-    # Xử lý tiền
-    with get_db() as db:
-        creator = db.query(Employee).filter(Employee.telegram_id == match["creator_id"]).first()
-        joiner = db.query(Employee).filter(Employee.telegram_id == match["joiner_id"]).first()
-        
-        if winner == "creator":
-            creator.coin += amount
-            joiner.coin -= amount
-            log_game(match['creator_name'], "KBB", amount, "THẮNG", amount)
-            log_game(match['joiner_name'], "KBB", amount, "THUA", -amount)
-        elif winner == "joiner":
-            joiner.coin += amount
-            creator.coin -= amount
-            log_game(match['joiner_name'], "KBB", amount, "THẮNG", amount)
-            log_game(match['creator_name'], "KBB", amount, "THUA", -amount)
-        
-        db.commit()
-        creator_coin = creator.coin
-        joiner_coin = joiner.coin
+    db = SessionLocal()
+    creator = db.query(Employee).filter(Employee.telegram_id == match["creator_id"]).first()
+    joiner = db.query(Employee).filter(Employee.telegram_id == match["joiner_id"]).first()
     
-    # Cập nhật tin nhắn trong group
+    if winner == "creator":
+        creator.coin += amount
+        joiner.coin -= amount
+    elif winner == "joiner":
+        joiner.coin += amount
+        creator.coin -= amount
+    
+    db.commit()
+    creator_coin = creator.coin
+    joiner_coin = joiner.coin
+    db.close()
+    
     final_msg = (
         f"✂️ <b>KẾT QUẢ KÉO BÚA BAO</b> ✊\n"
         f"━━━━━━━━━━━━━━━━\n"
@@ -499,7 +449,6 @@ async def resolve_kbb_match(context: ContextTypes.DEFAULT_TYPE, msg_id: int, mat
     except:
         pass
     
-    # Thông báo riêng
     if winner == "creator":
         await context.bot.send_message(match["creator_id"], f"🎉 Bạn THẮNG! +{amount:,.0f} Xu\n🪙 Xu: {creator_coin:,.0f}")
         await context.bot.send_message(match["joiner_id"], f"😢 Bạn THUA! -{amount:,.0f} Xu\n🪙 Xu: {joiner_coin:,.0f}")
@@ -510,5 +459,4 @@ async def resolve_kbb_match(context: ContextTypes.DEFAULT_TYPE, msg_id: int, mat
         await context.bot.send_message(match["creator_id"], f"🤝 HÒA! Không ai mất Xu")
         await context.bot.send_message(match["joiner_id"], f"🤝 HÒA! Không ai mất Xu")
     
-    # Xóa trận đấu
     del ACTIVE_KBB_MATCHES[msg_id]

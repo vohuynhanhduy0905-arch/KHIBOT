@@ -14,37 +14,19 @@ GROUP_INVITE_LINK = "https://t.me/c/3566594243/2"
 
 # === WEB ===
 WEB_URL = "https://trasuakhi.onrender.com"
-
-# === GAME CONFIG ===
-GAME_BET_AMOUNTS = [5000, 10000, 20000, 50000, 100000]
-
-# Slot Machine
-SLOT_EMOJIS = ["🍒", "🍋", "🍊", "🍇", "⭐", "💎", "7️⃣"]
-
-# Kéo Búa Bao
-KBB_CHOICES = {
-    "kbb_rock": ("✊", "Búa"),
-    "kbb_paper": ("✋", "Bao"),
-    "kbb_scissors": ("✌️", "Kéo")
-}
-
-KBB_RULES = {
-    "kbb_rock": "kbb_scissors",
-    "kbb_scissors": "kbb_paper",
-    "kbb_paper": "kbb_rock"
-}
+MAPS_URL = "https://www.google.com/maps/place/KH%E1%BB%88+MILKTEA+%26+MACCHIATO/@9.5996676,105.9736035,17z/data=!4m6!3m5!1s0x31a04df7049cd473:0xc085b8838ce2b39!8m2!3d9.5996676!4d105.9736035!16s%2Fg%2F11jx4pcl6m?hl=vi"
 
 # === REWARD CONFIG ===
-DAILY_CHECKIN_REWARD = 10000  # Xu mỗi lần điểm danh
-STREAK_7_BONUS = 30000  # Bonus 7 ngày liên tục
-REACT_REWARD = 1000  # Xu khi react tin nhắn
+DAILY_CHECKIN_REWARD = 10000
+STREAK_7_BONUS = 30000
+REACT_REWARD = 1000
 
 # Hộp quà may mắn
 GIFT_REWARDS = [
-    (5000, 50),   # 5000 Xu - 50%
-    (10000, 30),  # 10000 Xu - 30%
-    (15000, 15),  # 15000 Xu - 15%
-    (20000, 5),   # 20000 Xu - 5%
+    (5000, 50),
+    (10000, 30),
+    (15000, 15),
+    (20000, 5),
 ]
 
 # === RANK CONFIG ===
@@ -72,35 +54,28 @@ EMOJI_POOL = [
     "🍶", "🍾", "🍷", "🍸", "🍹", "🍺", "🍻", "🥂", "🥃", "🥤", "🧃", "🧉", "🧊", "🥢", "🍽️", "🍴", "🥄"
 ]
 
+# === KÉO BÚA BAO ===
+KBB_CHOICES = {
+    "kbb_rock": ("✊", "Búa"),
+    "kbb_paper": ("✋", "Bao"),
+    "kbb_scissors": ("✌️", "Kéo")
+}
+
+KBB_RULES = {
+    "kbb_rock": "kbb_scissors",
+    "kbb_scissors": "kbb_paper",
+    "kbb_paper": "kbb_rock"
+}
+
 # === THÔNG BÁO TỰ ĐỘNG ===
 MORNING_MESSAGES = [
-    "☀️ <b>CHÀO BUỔI SÁNG CA SÁNG!</b>\n\nChúc toàn thể nhân sự ca sáng bắt đầu ngày mới với sự tập trung và năng lượng cao nhất. Hãy chuẩn bị mọi thứ thật chỉn chu.\n\n❤️ Thả tim để nhận 1,000 Xu!",
-
-    "🌅 <b>KHỞI ĐẦU NGÀY MỚI TẠI KHỈ MILKTEA.</b>\n\nChúc team ca sáng làm việc hiệu quả, phối hợp nhịp nhàng để mang lại trải nghiệm tốt nhất cho khách hàng.\n\n❤️ Thả tim để nhận 1,000 Xu!",
-
-    "🌞 <b>THÔNG BÁO CA SÁNG.</b>\n\nChúc các bạn một ca làm việc thuận lợi. Hãy duy trì tiêu chuẩn chất lượng và vệ sinh cửa hàng lên hàng đầu.\n\n❤️ Thả tim để nhận 1,000 Xu!",
-
-    "⚡ <b>TINH THẦN KHỈ MILKTEA.</b>\n\nNghiêm túc trong công việc và nhiệt huyết trong phục vụ. Chúc team ca sáng hoàn thành tốt nhiệm vụ được giao.\n\n❤️ Thả tim để nhận 1,000 Xu!",
-
-    "🍃 <b>CHÀO NGÀY MỚI NĂNG ĐỘNG.</b>\n\nMọi sự chuẩn bị tốt vào buổi sáng sẽ mang lại kết quả tốt cho cả ngày. Cố lên nhé team ca sáng!\n\n❤️ Thả tim để nhận 1,000 Xu!",
-
-    "📋 <b>TRIỂN KHAI CÔNG VIỆC CA SÁNG.</b>\n\nChúc cả team một ngày làm việc chuyên nghiệp, xử lý đơn hàng nhanh chóng và chính xác.\n\n❤️ Thả tim để nhận 1,000 Xu!",
-
-    "💎 <b>CAM KẾT CHẤT LƯỢNG.</b>\n\nBắt đầu ngày mới bằng sự tận tâm. Chúc các chiến binh Khỉ Milktea ca sáng gặt hái được nhiều thành công.\n\n❤️ Thả tim để nhận 1,000 Xu!"
+    "☀️ <b>CHÀO BUỔI SÁNG!</b>\n\nChúc cả team ca sáng năng lượng tràn đầy! 💪\n\n❤️ Thả tim để nhận 1,000 Xu!",
+    "🌅 <b>NGÀY MỚI AN LÀNH!</b>\n\nCố lên nào các chiến binh KHỈ MILKTEA! 🐒\n\n❤️ Thả tim để nhận 1,000 Xu!",
+    "🌞 <b>GOOD MORNING TEAM!</b>\n\nMột ngày tuyệt vời đang chờ đón! ✨\n\n❤️ Thả tim để nhận 1,000 Xu!",
 ]
 
 EVENING_MESSAGES = [
-    "🌇 <b>BẮT ĐẦU CA CHIỀU.</b>\n\nChúc toàn đội ngũ ca chiều giữ vững phong độ, làm việc tập trung để hoàn thành chỉ tiêu trong ngày.\n\n❤️ Thả tim để nhận 1,000 Xu!",
-
-    "🌆 <b>CHÀO TEAM CA CHIỀU.</b>\n\nDù cuối ngày có thể mệt mỏi, hãy cùng nhau duy trì sự chuyên nghiệp đến những đơn hàng cuối cùng.\n\n❤️ Thả tim để nhận 1,000 Xu!",
-
-    "🚀 <b>TẬP TRUNG CA CAO ĐIỂM.</b>\n\nCa chiều là thời điểm quan trọng, chúc team phối hợp ăn ý và xử lý công việc thật hiệu quả.\n\n❤️ Thả tim để nhận 1,000 Xu!",
-
-    "🤝 <b>TINH THẦN ĐỒNG ĐỘI.</b>\n\nCảm ơn nỗ lực của các bạn trong ca chiều. Hãy hỗ trợ nhau để đảm bảo vận hành tốt nhất tại Khỉ Milktea.\n\n❤️ Thả tim để nhận 1,000 Xu!",
-
-    "🌙 <b>NỖ LỰC VỀ ĐÍCH.</b>\n\nChúc team ca chiều có một buổi làm việc năng suất. Sự tỉ mỉ của các bạn chính là bộ mặt của thương hiệu.\n\n❤️ Thả tim để nhận 1,000 Xu!",
-
-    "🎯 <b>MỤC TIÊU CA CHIỀU.</b>\n\nHãy đảm bảo mọi quy trình được thực hiện chuẩn xác. Chúc cả team có một ca làm việc thuận lợi và an lành.\n\n❤️ Thả tim để nhận 1,000 Xu!",
-
-    "✨ <b>HOÀN THÀNH NHIỆM VỤ.</b>\n\nChúc các bạn ca chiều làm việc đầy nhiệt huyết, giữ vững uy tín chất lượng của Khỉ Milktea cho đến khi đóng cửa.\n\n❤️ Thả tim để nhận 1,000 Xu!"
+    "🌆 <b>CHÀO CA CHIỀU!</b>\n\nCố lên team ơi, sắp hết ngày rồi! 💪\n\n❤️ Thả tim để nhận 1,000 Xu!",
+    "🌇 <b>BUỔI CHIỀU VUI VẺ!</b>\n\nCảm ơn team đã cố gắng! 🙏\n\n❤️ Thả tim để nhận 1,000 Xu!",
+    "☕ <b>BREAK TIME!</b>\n\nNghỉ ngơi chút rồi chiến tiếp nha! 🍵\n\n❤️ Thả tim để nhận 1,000 Xu!",
 ]

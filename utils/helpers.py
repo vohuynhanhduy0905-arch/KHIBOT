@@ -3,8 +3,13 @@
 
 import io
 import random
+import asyncio
+import time
 from PIL import Image, ImageDraw, ImageFont
 from config import RANK_LEVELS, GIFT_REWARDS
+
+# === SPAM TRACKER ===
+SPAM_TRACKER = {}
 
 def get_rank_info(balance: float) -> tuple[str, str]:
     """Lấy tên rank và icon dựa trên balance"""
@@ -27,21 +32,6 @@ def get_random_gift() -> int:
     return GIFT_REWARDS[0][0]
 
 
-def format_number(num: float) -> str:
-    """Format số với dấu phẩy"""
-    return f"{num:,.0f}"
-
-
-def format_currency(amount: float, suffix: str = "đ") -> str:
-    """Format tiền tệ"""
-    return f"{amount:,.0f}{suffix}"
-
-
-def format_xu(amount: float) -> str:
-    """Format Xu"""
-    return f"{amount:,.0f} Xu"
-
-
 def crop_to_circle(img: Image.Image) -> Image.Image:
     """Cắt ảnh thành hình tròn"""
     mask = Image.new('L', img.size, 0)
@@ -56,7 +46,6 @@ def create_card_image(name: str, emoji: str, balance: float, coin: float, avatar
     """Tạo ảnh thẻ nhân viên"""
     W, H = 800, 500
     
-    # 1. Tạo nền
     try:
         img = Image.open("static/card_bg.jpg").convert("RGBA")
         img = img.resize((W, H))
@@ -65,7 +54,7 @@ def create_card_image(name: str, emoji: str, balance: float, coin: float, avatar
 
     draw = ImageDraw.Draw(img)
 
-    # 2. Dán Logo
+    # Logo
     try:
         logo = Image.open("static/logo.png").convert("RGBA")
         logo_size = 110
@@ -75,7 +64,7 @@ def create_card_image(name: str, emoji: str, balance: float, coin: float, avatar
     except: 
         pass
 
-    # 3. Dán Avatar
+    # Avatar
     if avatar_bytes:
         try:
             avatar = Image.open(avatar_bytes).convert("RGBA")
@@ -86,7 +75,7 @@ def create_card_image(name: str, emoji: str, balance: float, coin: float, avatar
         except: 
             pass
 
-    # 4. Load fonts
+    # Fonts
     try:
         font_name = ImageFont.truetype("static/font.ttf", 60) 
         font_rank = ImageFont.truetype("static/font.ttf", 30)
@@ -96,10 +85,8 @@ def create_card_image(name: str, emoji: str, balance: float, coin: float, avatar
         font_rank = ImageFont.load_default()
         font_money = ImageFont.load_default()
 
-    # 5. Lấy tên Rank
     rank_name, _ = get_rank_info(balance)
 
-    # 6. Hàm căn giữa
     def draw_centered(y, text, font, color):
         try:
             bbox = draw.textbbox((0, 0), text, font=font)
@@ -109,13 +96,11 @@ def create_card_image(name: str, emoji: str, balance: float, coin: float, avatar
         x = (W - text_width) / 2
         draw.text((x, y), text, font=font, fill=color)
 
-    # 7. Viết chữ
     draw_centered(230, name, font_name, "white")
     draw_centered(300, f"{rank_name}", font_rank, "#F4D03F") 
     draw_centered(350, f"Ví: {balance:,.0f}đ", font_money, "white")
     draw_centered(410, f"Xu: {coin:,.0f}", font_money, "#00FF00")
 
-    # 8. Xuất ảnh
     bio = io.BytesIO()
     bio.name = 'card.png'
     img.save(bio, 'PNG')

@@ -1,30 +1,33 @@
 # --- FILE: handlers/admin_handlers.py ---
-# Xử lý các lệnh admin
+# Xử lý các lệnh admin: /dangky, /dsnv, /xoanv, /thong_bao
 
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from config import ADMIN_ID
+from config import ADMIN_ID, WEB_URL
 from database import SessionLocal, Employee
-from staff_sheet import register_staff, delete_staff, get_all_staff, get_staff_count
-from utils import get_db, log_info, log_user_action
+from staff_sheet import register_staff, delete_staff, get_all_staff
+from handlers.user_handlers import check_private
 
 
 # ==========================================
-# /dangky - Đăng ký nhân viên
+# /dangky - Đăng ký nhân viên (FORMAT ĐẸP)
 # ==========================================
 
 async def dangky_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Đăng ký nhân viên mới"""
-    user = update.effective_user
-    args = context.args
+    if not await check_private(update, context): 
+        return
     
-    # Hiển thị hướng dẫn nếu không có tham số
-    if not args or len(args) < 2:
+    user = update.effective_user
+    text = update.message.text.strip()
+    
+    parts = text.split(maxsplit=2)
+    if len(parts) < 3:
         await update.message.reply_text(
-            "📝 <b>ĐĂNG KÝ NHÂN VIÊN</b>\n\n"
-            "Cú pháp: /dangky Tên SĐT\n"
-            "Ví dụ: /dangky Lan 0901234567\n\n"
+            "📝 <b>ĐĂNG KÝ NHÂN VIÊN ORDER</b>\n\n"
+            "Cú pháp: <code>/dangky Tên SĐT</code>\n\n"
+            "Ví dụ: <code>/dangky Anh_Duy 0867760667</code>\n\n"
             "⚠️ Lưu ý:\n"
             "• Tên không có dấu cách (dùng _ nếu cần)\n"
             "• SĐT phải là số điện thoại hợp lệ",
@@ -32,23 +35,23 @@ async def dangky_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
     
-    name = args[0].replace("_", " ")
-    phone = args[1]
+    name = parts[1]
+    phone = parts[2]
     
-    # Validate số điện thoại
     if not phone.isdigit() or len(phone) < 9:
-        await update.message.reply_text("❌ Số điện thoại không hợp lệ!")
+        await update.message.reply_text("❌ SĐT không hợp lệ! Vui lòng nhập số điện thoại đúng.")
         return
     
-    # Đăng ký
     success, message, pin = register_staff(name, phone, str(user.id))
     
     if success:
-        log_user_action(str(user.id), name, "ĐĂNG KÝ", f"PIN: {pin}, SĐT: {phone}")
         await update.message.reply_text(
             f"✅ <b>{message}</b>\n\n"
-            f"📌 Lưu lại PIN này để đăng nhập webapp!\n"
-            f"🔐 PIN: <code>{pin}</code>",
+            f"👤 Tên: {name}\n"
+            f"📱 SĐT: {phone}\n"
+            f"🔑 Mã PIN: <code>{pin}</code>\n\n"
+            f"📲 Dùng mã PIN này để đăng nhập webapp order.\n"
+            f"🔗 Link: {WEB_URL}/order",
             parse_mode="HTML"
         )
     else:
@@ -61,29 +64,26 @@ async def dangky_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def dsnv_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Xem danh sách nhân viên (Admin only)"""
-    user = update.effective_user
-    
-    if str(user.id) != ADMIN_ID:
-        await update.message.reply_text("❌ Chỉ Admin mới dùng được lệnh này!")
+    if str(update.effective_user.id) != ADMIN_ID:
         return
     
     staff_list = get_all_staff()
     
     if not staff_list:
-        await update.message.reply_text("📋 Chưa có nhân viên nào đăng ký!")
+        await update.message.reply_text("📋 Chưa có nhân viên nào đăng ký.")
         return
     
-    txt = f"📋 <b>DANH SÁCH NHÂN VIÊN</b> ({len(staff_list)} người)\n"
-    txt += "━━━━━━━━━━━━━━━━\n"
+    msg = "📋 <b>DANH SÁCH NHÂN VIÊN</b>\n"
+    msg += "━━━━━━━━━━━━━━━━━━\n"
     
     for i, s in enumerate(staff_list, 1):
-        pin = s.get("PIN", "?")
-        name = s.get("Tên", "?")
-        phone = s.get("SĐT", "?")
-        tg = "✅" if s.get("Telegram_ID") else "❌"
-        txt += f"{i}. [{pin}] {name} - {phone} {tg}\n"
+        tg_status = "✅" if s.get("Telegram_ID") else "❌"
+        msg += f"{i}. <b>{s.get('Tên')}</b>\n"
+        msg += f"   PIN: <code>{s.get('PIN')}</code> | SĐT: {s.get('SĐT')} {tg_status}\n"
     
-    await update.message.reply_text(txt, parse_mode="HTML")
+    msg += f"\n📊 Tổng: {len(staff_list)} nhân viên"
+    
+    await update.message.reply_text(msg, parse_mode="HTML")
 
 
 # ==========================================
@@ -92,48 +92,21 @@ async def dsnv_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def xoanv_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Xóa nhân viên (Admin only)"""
-    user = update.effective_user
-    args = context.args
-    
-    if str(user.id) != ADMIN_ID:
-        await update.message.reply_text("❌ Chỉ Admin mới dùng được lệnh này!")
+    if str(update.effective_user.id) != ADMIN_ID:
         return
     
-    if not args:
+    if not context.args:
         await update.message.reply_text(
-            "📝 Cú pháp: /xoanv [PIN]\n"
-            "Ví dụ: /xoanv 1234"
+            "Cú pháp: <code>/xoanv [PIN]</code>\n"
+            "Ví dụ: <code>/xoanv 1234</code>",
+            parse_mode="HTML"
         )
         return
     
-    pin = args[0]
+    pin = context.args[0]
     success, message = delete_staff(pin)
     
-    if success:
-        log_info(f"Admin xóa nhân viên PIN: {pin}")
-    
     await update.message.reply_text(f"{'✅' if success else '❌'} {message}")
-
-
-# ==========================================
-# /top - Bảng xếp hạng
-# ==========================================
-
-async def top_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Hiển thị bảng xếp hạng"""
-    with get_db() as db:
-        # Top theo Xu
-        top_coin = db.query(Employee).order_by(Employee.coin.desc()).limit(10).all()
-        
-        txt = "🏆 <b>BẢNG XẾP HẠNG XU</b>\n"
-        txt += "━━━━━━━━━━━━━━━━\n"
-        
-        medals = ["🥇", "🥈", "🥉"]
-        for i, emp in enumerate(top_coin):
-            medal = medals[i] if i < 3 else f"{i+1}."
-            txt += f"{medal} {emp.name}: {emp.coin:,.0f} Xu\n"
-        
-        await update.message.reply_text(txt, parse_mode="HTML")
 
 
 # ==========================================
@@ -142,10 +115,7 @@ async def top_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def broadcast_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Gửi thông báo đến tất cả nhân viên (Admin only)"""
-    user = update.effective_user
-    
-    if str(user.id) != ADMIN_ID:
-        await update.message.reply_text("❌ Chỉ Admin mới dùng được lệnh này!")
+    if str(update.effective_user.id) != ADMIN_ID:
         return
     
     if not context.args:
@@ -154,20 +124,21 @@ async def broadcast_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     message = " ".join(context.args)
     
-    with get_db() as db:
-        employees = db.query(Employee).all()
-        sent = 0
-        failed = 0
-        
-        for emp in employees:
-            try:
-                await context.bot.send_message(
-                    chat_id=emp.telegram_id,
-                    text=f"📢 <b>THÔNG BÁO</b>\n\n{message}",
-                    parse_mode="HTML"
-                )
-                sent += 1
-            except:
-                failed += 1
-        
-        await update.message.reply_text(f"✅ Đã gửi: {sent}\n❌ Thất bại: {failed}")
+    db = SessionLocal()
+    employees = db.query(Employee).all()
+    sent = 0
+    failed = 0
+    
+    for emp in employees:
+        try:
+            await context.bot.send_message(
+                chat_id=emp.telegram_id,
+                text=f"📢 <b>THÔNG BÁO</b>\n\n{message}",
+                parse_mode="HTML"
+            )
+            sent += 1
+        except:
+            failed += 1
+    
+    db.close()
+    await update.message.reply_text(f"✅ Đã gửi: {sent}\n❌ Thất bại: {failed}")
