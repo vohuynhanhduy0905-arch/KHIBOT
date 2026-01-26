@@ -223,7 +223,20 @@ async def handle_game_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
 
     if data == "back_home":
-        await game_ui_command(update, context)
+        # Quay lại menu game chính
+        msg = f"🎰 <b>TRUNG TÂM GIẢI TRÍ</b> 🎰\nChào <b>{user.full_name}</b>, đại gia muốn chơi gì?"
+        keyboard = [
+            [
+                InlineKeyboardButton("🎲 Tài Xỉu", callback_data="menu_tx"),
+                InlineKeyboardButton("🎰 Slot", callback_data="slot_menu")
+            ],
+            [
+                InlineKeyboardButton("🥊 PK Xúc Xắc", callback_data="menu_pk"),
+                InlineKeyboardButton("✂️ Kéo Búa Bao", callback_data="kbb_menu")
+            ],
+            [InlineKeyboardButton("❌ Đóng", callback_data="close_menu")]
+        ]
+        await query.edit_message_text(msg, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
         return
 
     if data == "menu_tx":
@@ -1590,7 +1603,7 @@ KBB_CHOICES = {
     "kbb_scissors": ("✌️", "Kéo")
 }
 
-RPS_RULES = {
+KBB_RULES = {
     "kbb_rock": "kbb_scissors",     # Búa thắng Kéo
     "kbb_scissors": "kbb_paper",    # Kéo thắng Bao
     "kbb_paper": "kbb_rock"         # Bao thắng Búa
@@ -1778,7 +1791,7 @@ async def handle_kbb_choose(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     user_id = str(user.id)
-    choice_emoji, choice_name = RPS_CHOICES[choice]
+    choice_emoji, choice_name = KBB_CHOICES[choice]
     
     # Lưu lựa chọn
     if user_id == match["creator_id"]:
@@ -1799,7 +1812,7 @@ async def handle_kbb_choose(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # Kiểm tra cả 2 đã chọn chưa
     if match["creator_choice"] and match["joiner_choice"]:
-        await resolve_rps_match(context, msg_id, match)
+        await resolve_kbb_match(context, msg_id, match)
 
 
 async def resolve_kbb_match(context: ContextTypes.DEFAULT_TYPE, msg_id: int, match: dict):
@@ -1811,15 +1824,15 @@ async def resolve_kbb_match(context: ContextTypes.DEFAULT_TYPE, msg_id: int, mat
     
     c_choice = match["creator_choice"]
     j_choice = match["joiner_choice"]
-    c_emoji, c_name = RPS_CHOICES[c_choice]
-    j_emoji, j_name = RPS_CHOICES[j_choice]
+    c_emoji, c_name = KBB_CHOICES[c_choice]
+    j_emoji, j_name = KBB_CHOICES[j_choice]
     amount = match["amount"]
     
     # Xác định người thắng
     if c_choice == j_choice:
         result = "🤝 HÒA!"
         winner = None
-    elif RPS_RULES[c_choice] == j_choice:
+    elif KBB_RULES[c_choice] == j_choice:
         result = f"🏆 <b>{match['creator_name']}</b> THẮNG!"
         winner = "creator"
     else:
