@@ -959,9 +959,9 @@ async def dangky_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     parts = text.split(maxsplit=2)
     if len(parts) < 3:
         await update.message.reply_text(
-            "📝 <b>ĐĂNG KÝ NHÂN VIÊN</b>\n\n"
+            "📝 <b>ĐĂNG KÝ NHÂN VIÊN ORDER</b>\n\n"
             "Cú pháp: <code>/dangky Tên SĐT</code>\n\n"
-            "Ví dụ: <code>/dangky Lan 0901234567</code>\n\n"
+            "Ví dụ: <code>/dangky Anh_Duy 0867760667</code>\n\n"
             "⚠️ Lưu ý:\n"
             "• Tên không có dấu cách (dùng _ nếu cần)\n"
             "• SĐT phải là số điện thoại hợp lệ",
@@ -1260,6 +1260,7 @@ def get_review():
         "Trà trái cây tươi mát, uống là nghiền. Sẽ quay lại!"
     ])
     return {"content": content}
+
 
 
 
