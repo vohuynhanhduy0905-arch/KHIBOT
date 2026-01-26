@@ -45,8 +45,10 @@ WEB_URL = "https://trasuakhi.onrender.com"
 MAIN_GROUP_ID = -1003566594243
 ORDER_TOPIC_ID = 180 # Thay 123 bằng Topic ID thực của bạn
 GAME_TOPIC_ID = 181   # Topic cho game PK
+CHAT_TOPIC_ID = 3
 GROUP_INVITE_LINK = "https://t.me/c/3566594243/2"
 SPAM_TRACKER = {}
+DAILY_ANNOUNCEMENT_MSG = {}  # {message_id: set(user_ids đã react)}
 ACTIVE_RPS_MATCHES = {} 
 
 # Setup
@@ -267,6 +269,35 @@ async def handle_game_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
             ], 
             [InlineKeyboardButton("❌ Đóng", callback_data="close_menu")]
         ]
+        if data == "rps_menu":
+        if chat_type != "private":
+            await query.answer("✂️ Vào chat riêng với Bot để chơi!", show_alert=True)
+            return
+        
+        txt = (
+            "✂️ <b>KÉO BÚA BAO</b> ✊\n"
+            "━━━━━━━━━━━━━━━━\n"
+            "Tạo kèo thách đấu, chờ người nhận!\n"
+            "Cả 2 chọn bí mật, reveal cùng lúc.\n"
+            "━━━━━━━━━━━━━━━━\n"
+            "🪙 Chọn mức cược:"
+        )
+        
+        kb = [
+            [
+                InlineKeyboardButton("10k Xu", callback_data="rps_create_10000"),
+                InlineKeyboardButton("20k Xu", callback_data="rps_create_20000")
+            ],
+            [
+                InlineKeyboardButton("50k Xu", callback_data="rps_create_50000"),
+                InlineKeyboardButton("100k Xu", callback_data="rps_create_100000")
+            ],
+            [InlineKeyboardButton("🔙 Quay lại", callback_data="back_home")]
+        ]
+        
+        await query.edit_message_text(txt, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
+        return
+
         
         # Sửa tin nhắn hiện tại thành Menu chọn tiền
         await query.edit_message_text(txt, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
@@ -722,33 +753,316 @@ async def qr_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # --- LOGIC ĐIỂM DANH (NHẬN 10K XU) ---
 async def daily_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not await check_private(update, context): return
+    """Điểm danh hàng ngày với streak bonus"""
     user = update.effective_user
+    
     db = SessionLocal()
     emp = db.query(Employee).filter(Employee.telegram_id == str(user.id)).first()
     
     if not emp:
-        await update.message.reply_text("⚠️ Chưa đăng ký! Gõ /start trước.")
-        db.close(); return
-
-    # Kiểm tra xem hôm nay đã điểm danh chưa
-    now = datetime.now()
-    if emp.last_daily and emp.last_daily.date() == now.date():
-        await update.message.reply_text(f"🛑 <b>{emp.name}</b> ơi, nay điểm danh rồi!\nQuay lại vào ngày mai nhé.", parse_mode="HTML")
-    else:
-        bonus = 10000 # 10k Xu
-        emp.coin += bonus
-        emp.last_daily = now
-        db.commit()
+        await update.message.reply_text("❌ Bạn chưa được đăng ký trong hệ thống!")
+        db.close()
+        return
+    
+    today = date.today()
+    
+    # Kiểm tra đã điểm danh hôm nay chưa
+    if emp.last_checkin == today:
         await update.message.reply_text(
-            f"✅ <b>ĐIỂM DANH THÀNH CÔNG!</b>\n"
-            f"👤 {emp.name}\n"
-            f"🎁 Nhận: <b>+{bonus:,} Xu</b>\n"
-            f"💰 Tổng Xu: {emp.coin:,.0f} Xu\n"
-            f"👉 Gõ /shop để tiêu Xu.", 
+            f"⚠️ Bạn đã điểm danh hôm nay rồi!\n"
+            f"🔥 Streak hiện tại: {emp.checkin_streak} ngày\n"
+            f"📅 Quay lại vào ngày mai nhé!"
+        )
+        db.close()
+        return
+    
+    # Tính streak
+    yesterday = today - timedelta(days=1)
+    
+    if emp.last_checkin == yesterday:
+        # Điểm danh liên tục
+        emp.checkin_streak += 1
+    else:
+        # Reset streak (quên điểm danh)
+        emp.checkin_streak = 1
+    
+    # Thưởng cơ bản
+    base_reward = 10000
+    bonus = 0
+    bonus_text = ""
+    
+    # Bonus streak 7 ngày
+    if emp.checkin_streak >= 7 and emp.checkin_streak % 7 == 0:
+        bonus = 30000
+        bonus_text = f"\n🎁 <b>BONUS 7 NGÀY: +{bonus:,.0f} Xu!</b>"
+    
+    total_reward = base_reward + bonus
+    emp.coin += total_reward
+    emp.last_checkin = today
+    
+    db.commit()
+    
+    # Hiển thị streak progress
+    streak_display = ""
+    for i in range(1, 8):
+        if i <= (emp.checkin_streak % 7) or (emp.checkin_streak % 7 == 0 and emp.checkin_streak > 0):
+            streak_display += "🟢"
+        else:
+            streak_display += "⚪"
+    
+    msg = (
+        f"📅 <b>ĐIỂM DANH THÀNH CÔNG!</b>\n"
+        f"━━━━━━━━━━━━━━━━\n"
+        f"💰 +{base_reward:,.0f} Xu{bonus_text}\n"
+        f"━━━━━━━━━━━━━━━━\n"
+        f"🔥 Streak: <b>{emp.checkin_streak} ngày</b>\n"
+        f"📊 Tuần này: {streak_display}\n"
+        f"🪙 Xu hiện có: <b>{emp.coin:,.0f}</b>\n"
+        f"━━━━━━━━━━━━━━━━\n"
+        f"💡 Điểm danh 7 ngày liên tục = +30,000 Xu!"
+    )
+    
+    await update.message.reply_text(msg, parse_mode="HTML")
+    db.close()
+
+GIFT_REWARDS = [
+    (5000, 50),   # 5000 Xu - 50%
+    (10000, 30),  # 10000 Xu - 30%
+    (15000, 15),  # 15000 Xu - 15%
+    (20000, 5),   # 20000 Xu - 5%
+]
+
+def get_random_gift():
+    """Random phần thưởng theo tỉ lệ"""
+    total = sum(weight for _, weight in GIFT_REWARDS)
+    r = random.randint(1, total)
+    cumulative = 0
+    for reward, weight in GIFT_REWARDS:
+        cumulative += weight
+        if r <= cumulative:
+            return reward
+    return GIFT_REWARDS[0][0]
+
+
+async def gift_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Mở hộp quà may mắn - FREE 1 lần/ngày"""
+    user = update.effective_user
+    
+    db = SessionLocal()
+    emp = db.query(Employee).filter(Employee.telegram_id == str(user.id)).first()
+    
+    if not emp:
+        await update.message.reply_text("❌ Bạn chưa được đăng ký trong hệ thống!")
+        db.close()
+        return
+    
+    today = date.today()
+    
+    # Kiểm tra đã mở quà hôm nay chưa
+    if emp.last_gift_open == today:
+        await update.message.reply_text(
+            f"🎁 Bạn đã mở quà hôm nay rồi!\n"
+            f"📅 Quay lại vào ngày mai nhé!"
+        )
+        db.close()
+        return
+    
+    # Random phần thưởng
+    reward = get_random_gift()
+    
+    # Cập nhật
+    emp.coin += reward
+    emp.last_gift_open = today
+    db.commit()
+    
+    # Hiệu ứng mở hộp
+    if reward == 20000:
+        effect = "🎉🎊🎉 SIÊU HIẾM! 🎉🎊🎉"
+        emoji = "💎"
+    elif reward == 15000:
+        effect = "✨ HIẾM! ✨"
+        emoji = "🌟"
+    elif reward == 10000:
+        effect = "🎊 Tốt lắm!"
+        emoji = "🎁"
+    else:
+        effect = "👍 Không tệ!"
+        emoji = "📦"
+    
+    msg = (
+        f"🎁 <b>HỘP QUÀ MAY MẮN</b> 🎁\n"
+        f"━━━━━━━━━━━━━━━━\n"
+        f"{emoji} Mở hộp...\n\n"
+        f"{effect}\n"
+        f"💰 <b>+{reward:,.0f} Xu!</b>\n"
+        f"━━━━━━━━━━━━━━━━\n"
+        f"🪙 Xu hiện có: <b>{emp.coin:,.0f}</b>\n\n"
+        f"📅 Quay lại ngày mai để mở tiếp!"
+    )
+    
+    await update.message.reply_text(msg, parse_mode="HTML")
+    db.close()
+
+# ==========================================
+# 4. THÔNG BÁO TỰ ĐỘNG 8H & 17H
+# ==========================================
+
+MORNING_MESSAGES = [
+    "☀️ <b>CHÀO BUỔI SÁNG CA SÁNG!</b>\n\nChúc toàn thể nhân sự ca sáng bắt đầu ngày mới với sự tập trung và năng lượng cao nhất. Hãy chuẩn bị mọi thứ thật chỉn chu.\n\n❤️ Thả tim để nhận 1,000 Xu!",
+
+    "🌅 <b>KHỞI ĐẦU NGÀY MỚI TẠI KHỈ MILKTEA.</b>\n\nChúc team ca sáng làm việc hiệu quả, phối hợp nhịp nhàng để mang lại trải nghiệm tốt nhất cho khách hàng.\n\n❤️ Thả tim để nhận 1,000 Xu!",
+
+    "🌞 <b>THÔNG BÁO CA SÁNG.</b>\n\nChúc các bạn một ca làm việc thuận lợi. Hãy duy trì tiêu chuẩn chất lượng và vệ sinh cửa hàng lên hàng đầu.\n\n❤️ Thả tim để nhận 1,000 Xu!",
+
+    "⚡ <b>TINH THẦN KHỈ MILKTEA.</b>\n\nNghiêm túc trong công việc và nhiệt huyết trong phục vụ. Chúc team ca sáng hoàn thành tốt nhiệm vụ được giao.\n\n❤️ Thả tim để nhận 1,000 Xu!",
+
+    "🍃 <b>CHÀO NGÀY MỚI NĂNG ĐỘNG.</b>\n\nMọi sự chuẩn bị tốt vào buổi sáng sẽ mang lại kết quả tốt cho cả ngày. Cố lên nhé team ca sáng!\n\n❤️ Thả tim để nhận 1,000 Xu!",
+
+    "📋 <b>TRIỂN KHAI CÔNG VIỆC CA SÁNG.</b>\n\nChúc cả team một ngày làm việc chuyên nghiệp, xử lý đơn hàng nhanh chóng và chính xác.\n\n❤️ Thả tim để nhận 1,000 Xu!",
+
+    "💎 <b>CAM KẾT CHẤT LƯỢNG.</b>\n\nBắt đầu ngày mới bằng sự tận tâm. Chúc các chiến binh Khỉ Milktea ca sáng gặt hái được nhiều thành công.\n\n❤️ Thả tim để nhận 1,000 Xu!"
+]
+EVENING_MESSAGES = [
+    "🌇 <b>BẮT ĐẦU CA CHIỀU.</b>\n\nChúc toàn đội ngũ ca chiều giữ vững phong độ, làm việc tập trung để hoàn thành chỉ tiêu trong ngày.\n\n❤️ Thả tim để nhận 1,000 Xu!",
+
+    "🌆 <b>CHÀO TEAM CA CHIỀU.</b>\n\nDù cuối ngày có thể mệt mỏi, hãy cùng nhau duy trì sự chuyên nghiệp đến những đơn hàng cuối cùng.\n\n❤️ Thả tim để nhận 1,000 Xu!",
+
+    "🚀 <b>TẬP TRUNG CA CAO ĐIỂM.</b>\n\nCa chiều là thời điểm quan trọng, chúc team phối hợp ăn ý và xử lý công việc thật hiệu quả.\n\n❤️ Thả tim để nhận 1,000 Xu!",
+
+    "🤝 <b>TINH THẦN ĐỒNG ĐỘI.</b>\n\nCảm ơn nỗ lực của các bạn trong ca chiều. Hãy hỗ trợ nhau để đảm bảo vận hành tốt nhất tại Khỉ Milktea.\n\n❤️ Thả tim để nhận 1,000 Xu!",
+
+    "🌙 <b>NỖ LỰC VỀ ĐÍCH.</b>\n\nChúc team ca chiều có một buổi làm việc năng suất. Sự tỉ mỉ của các bạn chính là bộ mặt của thương hiệu.\n\n❤️ Thả tim để nhận 1,000 Xu!",
+
+    "🎯 <b>MỤC TIÊU CA CHIỀU.</b>\n\nHãy đảm bảo mọi quy trình được thực hiện chuẩn xác. Chúc cả team có một ca làm việc thuận lợi và an lành.\n\n❤️ Thả tim để nhận 1,000 Xu!",
+
+    "✨ <b>HOÀN THÀNH NHIỆM VỤ.</b>\n\nChúc các bạn ca chiều làm việc đầy nhiệt huyết, giữ vững uy tín chất lượng của Khỉ Milktea cho đến khi đóng cửa.\n\n❤️ Thả tim để nhận 1,000 Xu!"
+]
+
+
+async def send_daily_announcement(context: ContextTypes.DEFAULT_TYPE, is_morning: bool):
+    """Gửi thông báo tự động"""
+    global DAILY_ANNOUNCEMENT_MSG
+    
+    messages = MORNING_MESSAGES if is_morning else EVENING_MESSAGES
+    text = random.choice(messages)
+    
+    try:
+        sent_msg = await context.bot.send_message(
+            chat_id=MAIN_GROUP_ID,
+            message_thread_id=CHAT_TOPIC_ID,
+            text=text,
             parse_mode="HTML"
         )
+        
+        # Lưu message_id để track react
+        DAILY_ANNOUNCEMENT_MSG[sent_msg.message_id] = set()
+        
+        # Tự động xóa khỏi dict sau 24h để tránh memory leak
+        async def cleanup():
+            await asyncio.sleep(86400)  # 24 giờ
+            DAILY_ANNOUNCEMENT_MSG.pop(sent_msg.message_id, None)
+        
+        asyncio.create_task(cleanup())
+        
+    except Exception as e:
+        print(f"Lỗi gửi thông báo: {e}")
+
+
+async def schedule_announcements(context: ContextTypes.DEFAULT_TYPE):
+    """Lên lịch gửi thông báo 8h và 17h"""
+    import pytz
+    
+    vn_tz = pytz.timezone('Asia/Ho_Chi_Minh')
+    
+    while True:
+        now = datetime.now(vn_tz)
+        
+        # Tính thời gian đến 8h sáng
+        next_8am = now.replace(hour=8, minute=0, second=0, microsecond=0)
+        if now.hour >= 8:
+            next_8am += timedelta(days=1)
+        
+        # Tính thời gian đến 17h chiều
+        next_5pm = now.replace(hour=17, minute=0, second=0, microsecond=0)
+        if now.hour >= 17:
+            next_5pm += timedelta(days=1)
+        
+        # Chọn thời điểm gần nhất
+        if next_8am < next_5pm:
+            wait_seconds = (next_8am - now).total_seconds()
+            is_morning = True
+        else:
+            wait_seconds = (next_5pm - now).total_seconds()
+            is_morning = False
+        
+        # Chờ đến giờ
+        await asyncio.sleep(wait_seconds)
+        
+        # Gửi thông báo
+        await send_daily_announcement(context, is_morning)
+        
+        # Chờ 1 phút tránh gửi trùng
+        await asyncio.sleep(60)
+
+
+# ==========================================
+# 5. XỬ LÝ REACTION TẶNG XU
+# ==========================================
+
+async def handle_reaction(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Xử lý khi có người react tin nhắn"""
+    global DAILY_ANNOUNCEMENT_MSG
+    
+    reaction = update.message_reaction
+    if not reaction:
+        return
+    
+    message_id = reaction.message_id
+    user_id = reaction.user.id if reaction.user else None
+    
+    if not user_id:
+        return
+    
+    # Kiểm tra có phải tin nhắn thông báo không
+    if message_id not in DAILY_ANNOUNCEMENT_MSG:
+        return
+    
+    # Kiểm tra đã react chưa
+    if user_id in DAILY_ANNOUNCEMENT_MSG[message_id]:
+        return
+    
+    # Kiểm tra có react ❤️ không
+    new_reactions = reaction.new_reaction
+    has_heart = any(
+        r.emoji == "❤" or r.emoji == "❤️" 
+        for r in new_reactions
+    ) if new_reactions else False
+    
+    if not has_heart:
+        return
+    
+    # Cộng Xu
+    db = SessionLocal()
+    emp = db.query(Employee).filter(Employee.telegram_id == str(user_id)).first()
+    
+    if emp:
+        emp.coin += 1000
+        db.commit()
+        
+        # Đánh dấu đã react
+        DAILY_ANNOUNCEMENT_MSG[message_id].add(user_id)
+        
+        # Thông báo riêng
+        try:
+            await context.bot.send_message(
+                chat_id=user_id,
+                text=f"❤️ Cảm ơn bạn đã tương tác!\n💰 +1,000 Xu\n🪙 Xu hiện có: {emp.coin:,.0f}"
+            )
+        except:
+            pass
+    
     db.close()
+
 
 # --- LOGIC HIỂN THỊ MENU SHOP ---
 async def shop_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1129,7 +1443,7 @@ async def slot_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def handle_slot_play(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Xử lý khi chơi Slot"""
+    """Xử lý khi chơi Slot - CÓ ANIMATION"""
     query = update.callback_query
     user = query.from_user
     data = query.data
@@ -1148,23 +1462,48 @@ async def handle_slot_play(update: Update, context: ContextTypes.DEFAULT_TYPE):
     emp.coin -= amount
     db.commit()
     
-    # Quay slot
-    result = [random.choice(SLOT_EMOJIS) for _ in range(3)]
-    result_str = "".join(result)
+    # Xóa tin nhắn cũ
+    try:
+        await query.message.delete()
+    except:
+        pass
     
-    # Tính thưởng
+    # Gửi thông báo đang quay
+    wait_msg = await context.bot.send_message(
+        chat_id=user.id,
+        text=f"🎰 Đang quay... (Cược: {amount:,.0f} Xu)"
+    )
+    
+    # Gửi dice slot với animation
+    dice_msg = await context.bot.send_dice(
+        chat_id=user.id,
+        emoji="🎰"
+    )
+    
+    # Lấy giá trị slot (1-64)
+    slot_value = dice_msg.dice.value
+    
+    # Chờ animation chạy xong (3 giây)
+    await asyncio.sleep(3)
+    
+    # Tính kết quả dựa trên giá trị
+    # Telegram slot: 1-64, các giá trị đặc biệt:
+    # 64 = 777 (Jackpot), 43 = Bar Bar Bar, 22 = Lemon x3...
     winnings = 0
-    note = ""
     
-    if result_str in SLOT_PAYOUTS:
-        # Trùng 3
-        multiplier = SLOT_PAYOUTS[result_str]
-        winnings = amount * multiplier
-        note = f"🎉 <b>TRÙNG 3!</b> x{multiplier}"
-    elif result[0] == result[1] or result[1] == result[2] or result[0] == result[2]:
-        # Trùng 2
+    if slot_value == 64:  # 777 Jackpot
+        winnings = amount * 50
+        note = "🎉🎉🎉 <b>JACKPOT 777!</b> x50"
+    elif slot_value == 43:  # Bar x3
+        winnings = amount * 20
+        note = "🎊 <b>BAR BAR BAR!</b> x20"
+    elif slot_value in [1, 22]:  # 3 giống nhau khác
+        winnings = amount * 10
+        note = "✨ <b>TRÙNG 3!</b> x10"
+    elif slot_value in [2, 3, 4, 6, 11, 16, 17, 21, 32, 33, 38, 41, 42, 48, 49, 54, 59, 61, 62, 63]:
+        # 2 giống nhau
         winnings = int(amount * 1.5)
-        note = "✨ Trùng 2! x1.5"
+        note = "👍 Trùng 2! x1.5"
     else:
         note = "😢 Không trúng!"
     
@@ -1176,25 +1515,36 @@ async def handle_slot_play(update: Update, context: ContextTypes.DEFAULT_TYPE):
     profit = winnings - amount
     profit_str = f"+{profit:,.0f}" if profit > 0 else f"{profit:,.0f}"
     
-    # Hiển thị kết quả
-    msg = (
-        f"🎰 <b>SLOT MACHINE</b>\n"
-        f"━━━━━━━━━━━━━━━━\n"
-        f"  [ {result[0]} | {result[1]} | {result[2]} ]\n"
+    # Xóa tin nhắn chờ
+    try:
+        await wait_msg.delete()
+    except:
+        pass
+    
+    # Gửi kết quả
+    result_msg = (
+        f"🎰 <b>KẾT QUẢ SLOT</b>\n"
         f"━━━━━━━━━━━━━━━━\n"
         f"{note}\n"
         f"💰 {profit_str} Xu\n"
-        f"🪙 Xu hiện có: {emp.coin:,.0f}"
+        f"🪙 Xu hiện có: <b>{emp.coin:,.0f}</b>"
     )
     
     kb = [
         [
             InlineKeyboardButton("🔄 Quay tiếp", callback_data=f"slot_play_{amount}"),
             InlineKeyboardButton("💰 Đổi mức", callback_data="slot_menu")
-        ]
+        ],
+        [InlineKeyboardButton("🔙 Menu Game", callback_data="back_home")]
     ]
     
-    await query.edit_message_text(msg, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
+    await context.bot.send_message(
+        chat_id=user.id,
+        text=result_msg,
+        reply_markup=InlineKeyboardMarkup(kb),
+        parse_mode="HTML"
+    )
+    
     db.close()
 
 
@@ -1546,9 +1896,9 @@ bot_app.add_handler(CommandHandler("dangky", dangky_command))
 bot_app.add_handler(CommandHandler("dsnv", dsnv_command))
 bot_app.add_handler(CommandHandler("xoanv", xoanv_command))
 bot_app.add_handler(CommandHandler("slot", slot_command))
-bot_app.add_handler(CommandHandler("rps", rps_command))
 bot_app.add_handler(CommandHandler("kbb", rps_command))
-
+bot_app.add_handler(CommandHandler("gift", gift_command))
+bot_app.add_handler(MessageHandler(filters.MESSAGE_REACTION, handle_reaction))
 # === CALLBACK HANDLERS - CÓ PATTERN TRƯỚC ===
 bot_app.add_handler(CallbackQueryHandler(order_button_callback, pattern="^(cancel_order_|pos_done)"))
 bot_app.add_handler(CallbackQueryHandler(handle_slot_play, pattern="^slot_play_"))
@@ -1575,17 +1925,72 @@ async def lifespan(app: FastAPI):
     BotCommand("me", "💳 Ví & Thẻ"),
     BotCommand("game", "🎰 Chơi Game"),
     BotCommand("diemdanh", "📅 Điểm danh"),
+    BotCommand("gift", "🎁 Mở quà may mắn"),
     BotCommand("shop", "🛒 Shop quà"),
     BotCommand("qr", "🚀 Lấy mã QR"),
     BotCommand("top", "🏆 BXH"),
 ])
     
     asyncio.create_task(bot_app.updater.start_polling())
+    asyncio.create_task(run_announcement_scheduler())
     print("✅ Bot đã khởi động với Menu chuẩn...")
     yield
     await bot_app.updater.stop()
     await bot_app.stop()
     await bot_app.shutdown()
+
+async def run_announcement_scheduler():
+    '''Scheduler gửi thông báo 8h và 17h'''
+    import pytz
+    
+    vn_tz = pytz.timezone('Asia/Ho_Chi_Minh')
+    
+    while True:
+        now = datetime.now(vn_tz)
+        
+        # Tính thời gian đến 8h sáng
+        next_8am = now.replace(hour=8, minute=0, second=0, microsecond=0)
+        if now.hour >= 8:
+            next_8am += timedelta(days=1)
+        
+        # Tính thời gian đến 17h chiều
+        next_5pm = now.replace(hour=17, minute=0, second=0, microsecond=0)
+        if now.hour >= 17:
+            next_5pm += timedelta(days=1)
+        
+        # Chọn thời điểm gần nhất
+        if next_8am < next_5pm:
+            wait_seconds = (next_8am - now).total_seconds()
+            is_morning = True
+        else:
+            wait_seconds = (next_5pm - now).total_seconds()
+            is_morning = False
+        
+        print(f"⏰ Chờ {wait_seconds/3600:.1f}h để gửi thông báo {'sáng' if is_morning else 'chiều'}")
+        
+        # Chờ đến giờ
+        await asyncio.sleep(wait_seconds)
+        
+        # Gửi thông báo
+        messages = MORNING_MESSAGES if is_morning else EVENING_MESSAGES
+        text = random.choice(messages)
+        
+        try:
+            sent_msg = await bot_app.bot.send_message(
+                chat_id=MAIN_GROUP_ID,
+                message_thread_id=CHAT_TOPIC_ID,
+                text=text,
+                parse_mode="HTML"
+            )
+            
+            DAILY_ANNOUNCEMENT_MSG[sent_msg.message_id] = set()
+            print(f"✅ Đã gửi thông báo {'sáng' if is_morning else 'chiều'}")
+            
+        except Exception as e:
+            print(f"❌ Lỗi gửi thông báo: {e}")
+        
+        # Chờ 1 phút tránh gửi trùng
+        await asyncio.sleep(60)
 
 app = FastAPI(lifespan=lifespan)
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -1721,6 +2126,7 @@ def get_review():
         "Trà trái cây tươi mát, uống là nghiền. Sẽ quay lại!"
     ])
     return {"content": content}
+
 
 
 
