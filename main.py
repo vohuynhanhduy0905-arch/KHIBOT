@@ -43,8 +43,11 @@ TOKEN = os.environ.get("TELEGRAM_TOKEN")
 ADMIN_ID = "1587932557"
 WEB_URL = "https://trasuakhi.onrender.com" 
 MAIN_GROUP_ID = -1003566594243
+ORDER_TOPIC_ID = 180 # Thay 123 bằng Topic ID thực của bạn
+GAME_TOPIC_ID = 181   # Topic cho game PK
 GROUP_INVITE_LINK = "https://t.me/c/3566594243/2"
 SPAM_TRACKER = {}
+ACTIVE_RPS_MATCHES = {} 
 
 # Setup
 init_db()
@@ -189,12 +192,16 @@ async def game_ui_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # 2. Nếu là chat riêng -> Hiện Menu
     msg = f"🎰 <b>TRUNG TÂM GIẢI TRÍ</b> 🎰\nChào <b>{user.full_name}</b>, đại gia muốn chơi gì?"
     keyboard = [
-        [
-            InlineKeyboardButton("🎲 TÀI XỈU (Solo)", callback_data="menu_tx"),
-            InlineKeyboardButton("🥊 ĐẤU PK (Solo)", callback_data="menu_pk")
-        ],
-        [InlineKeyboardButton("❌ Đóng Menu", callback_data="close_menu")]
-    ]
+     [
+         InlineKeyboardButton("🎲 Tài Xỉu", callback_data="menu_tx"),
+         InlineKeyboardButton("🎰 Slot", callback_data="slot_menu")
+     ],
+     [
+         InlineKeyboardButton("🥊 PK Xúc Xắc", callback_data="menu_pk"),
+         InlineKeyboardButton("✂️ Kéo Búa Bao", callback_data="rps_menu")
+     ],
+     [InlineKeyboardButton("❌ Đóng", callback_data="close_menu")]
+ ]
     await update.message.reply_text(msg, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
 
 # --- HÀM XỬ LÝ NÚT BẤM (ĐÃ SỬA LỖI PK IM LẶNG) ---
@@ -414,6 +421,7 @@ async def handle_game_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
             
             sent_msg = await context.bot.send_photo(
                 chat_id=MAIN_GROUP_ID,
+                message_thread_id=GAME_TOPIC_ID,
                 photo=photo_file,       # File ảnh
                 caption=msg_content,    # Nội dung chữ
                 reply_markup=InlineKeyboardMarkup(kb),
@@ -921,8 +929,7 @@ async def web_app_data_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         # ĐỊNH DẠNG SIÊU GỌN CHO THU NGÂN
         # Cấu trúc: [Tên khách] - [Tên phục vụ]
         # Món x Số lượng (Topping)
-        msg = f"🔔 <b>ĐƠN: {customer.upper()}</b> (từ {user.first_name})\n"
-        msg += "━━━━━━━━━━━━━━━━━━\n"
+        msg = f"🔔 <b>ĐƠN:</b> {customer.upper()} ({user.first_name})\n"
         
         for item in items:
             # Gom topping và ghi chú vào ngoặc đơn
@@ -935,8 +942,6 @@ async def web_app_data_handler(update: Update, context: ContextTypes.DEFAULT_TYP
             detail = f" ({', '.join(extra)})" if extra else ""
             msg += f"• {item['qty']}x <b>{item['name']}</b>{detail}\n"
         
-        msg += f"━━━━━━━━━━━━━━━━━━\n"
-        msg += f"💰 <b>TỔNG: {total/1000:,.0f}k</b>" # Hiển thị dạng 79k cho gọn
 
         # Nút bấm để thu ngân xác nhận đã nhập máy
         kb = [[InlineKeyboardButton("✅ ĐÃ NHẬP MÁY", callback_data="pos_done")]]
@@ -952,6 +957,7 @@ async def web_app_data_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 
 # --- LỆNH ĐĂNG KÝ NHÂN VIÊN ---
 async def dangky_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check_private(update, context): return
     user = update.effective_user
     text = update.message.text.strip()
     
@@ -1072,7 +1078,449 @@ async def order_button_callback(update: Update, context: ContextTypes.DEFAULT_TY
         except:
             await query.answer("Đã xử lý!")
         return
+SLOT_EMOJIS = ["🍒", "🍋", "🍊", "🍇", "⭐", "💎", "7️⃣"]
+SLOT_PAYOUTS = {
+    "💎💎💎": 50,   # Jackpot
+    "7️⃣7️⃣7️⃣": 30,
+    "⭐⭐⭐": 20,
+    "🍇🍇🍇": 10,
+    "🍊🍊🍊": 8,
+    "🍋🍋🍋": 5,
+    "🍒🍒🍒": 3,
+}
 
+async def slot_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Hiển thị menu Slot Machine"""
+    user = update.effective_user
+    chat_type = update.effective_chat.type
+    
+    # Chỉ chơi trong chat riêng
+    if chat_type != "private":
+        await update.message.reply_text("🎰 Vào chat riêng với Bot để chơi Slot nhé!")
+        return
+    
+    txt = (
+        "🎰 <b>SLOT MACHINE</b> 🎰\n"
+        "━━━━━━━━━━━━━━━━\n"
+        "💎💎💎 = x50 (Jackpot)\n"
+        "7️⃣7️⃣7️⃣ = x30\n"
+        "⭐⭐⭐ = x20\n"
+        "🍇🍇🍇 = x10\n"
+        "🍊🍊🍊 = x8\n"
+        "🍋🍋🍋 = x5\n"
+        "🍒🍒🍒 = x3\n"
+        "2️⃣ trùng = x1.5\n"
+        "━━━━━━━━━━━━━━━━\n"
+        "🪙 Chọn mức cược:"
+    )
+    
+    kb = [
+        [
+            InlineKeyboardButton("5k", callback_data="slot_play_5000"),
+            InlineKeyboardButton("10k", callback_data="slot_play_10000"),
+            InlineKeyboardButton("20k", callback_data="slot_play_20000"),
+            InlineKeyboardButton("50k", callback_data="slot_play_50000")
+        ],
+        [InlineKeyboardButton("❌ Đóng", callback_data="close_menu")]
+    ]
+    
+    await update.message.reply_text(txt, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
+
+
+async def handle_slot_play(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Xử lý khi chơi Slot"""
+    query = update.callback_query
+    user = query.from_user
+    data = query.data
+    
+    amount = int(data.replace("slot_play_", ""))
+    
+    db = SessionLocal()
+    emp = db.query(Employee).filter(Employee.telegram_id == str(user.id)).first()
+    
+    if not emp or emp.coin < amount:
+        await query.answer("💸 Không đủ Xu!", show_alert=True)
+        db.close()
+        return
+    
+    # Trừ tiền cược
+    emp.coin -= amount
+    db.commit()
+    
+    # Quay slot
+    result = [random.choice(SLOT_EMOJIS) for _ in range(3)]
+    result_str = "".join(result)
+    
+    # Tính thưởng
+    winnings = 0
+    note = ""
+    
+    if result_str in SLOT_PAYOUTS:
+        # Trùng 3
+        multiplier = SLOT_PAYOUTS[result_str]
+        winnings = amount * multiplier
+        note = f"🎉 <b>TRÙNG 3!</b> x{multiplier}"
+    elif result[0] == result[1] or result[1] == result[2] or result[0] == result[2]:
+        # Trùng 2
+        winnings = int(amount * 1.5)
+        note = "✨ Trùng 2! x1.5"
+    else:
+        note = "😢 Không trúng!"
+    
+    # Cộng tiền thắng
+    if winnings > 0:
+        emp.coin += winnings
+        db.commit()
+    
+    profit = winnings - amount
+    profit_str = f"+{profit:,.0f}" if profit > 0 else f"{profit:,.0f}"
+    
+    # Hiển thị kết quả
+    msg = (
+        f"🎰 <b>SLOT MACHINE</b>\n"
+        f"━━━━━━━━━━━━━━━━\n"
+        f"  [ {result[0]} | {result[1]} | {result[2]} ]\n"
+        f"━━━━━━━━━━━━━━━━\n"
+        f"{note}\n"
+        f"💰 {profit_str} Xu\n"
+        f"🪙 Xu hiện có: {emp.coin:,.0f}"
+    )
+    
+    kb = [
+        [
+            InlineKeyboardButton("🔄 Quay tiếp", callback_data=f"slot_play_{amount}"),
+            InlineKeyboardButton("💰 Đổi mức", callback_data="slot_menu")
+        ]
+    ]
+    
+    await query.edit_message_text(msg, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
+    db.close()
+
+
+async def handle_slot_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Quay lại menu Slot"""
+    query = update.callback_query
+    
+    txt = (
+        "🎰 <b>SLOT MACHINE</b> 🎰\n"
+        "━━━━━━━━━━━━━━━━\n"
+        "💎💎💎 = x50 (Jackpot)\n"
+        "7️⃣7️⃣7️⃣ = x30\n"
+        "⭐⭐⭐ = x20\n"
+        "🍇🍇🍇 = x10\n"
+        "🍊🍊🍊 = x8\n"
+        "🍋🍋🍋 = x5\n"
+        "🍒🍒🍒 = x3\n"
+        "2️⃣ trùng = x1.5\n"
+        "━━━━━━━━━━━━━━━━\n"
+        "🪙 Chọn mức cược:"
+    )
+    
+    kb = [
+        [
+            InlineKeyboardButton("5k", callback_data="slot_play_5000"),
+            InlineKeyboardButton("10k", callback_data="slot_play_10000"),
+            InlineKeyboardButton("20k", callback_data="slot_play_20000"),
+            InlineKeyboardButton("50k", callback_data="slot_play_50000")
+        ],
+        [InlineKeyboardButton("❌ Đóng", callback_data="close_menu")]
+    ]
+    
+    await query.edit_message_text(txt, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
+
+
+# ==========================================
+# GAME 2: KÉO BÚA BAO (PvP)
+# ==========================================
+
+RPS_CHOICES = {
+    "rps_rock": ("✊", "Búa"),
+    "rps_paper": ("✋", "Bao"),
+    "rps_scissors": ("✌️", "Kéo")
+}
+
+RPS_RULES = {
+    "rps_rock": "rps_scissors",     # Búa thắng Kéo
+    "rps_scissors": "rps_paper",    # Kéo thắng Bao
+    "rps_paper": "rps_rock"         # Bao thắng Búa
+}
+
+
+async def rps_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Hiển thị menu Kéo Búa Bao"""
+    user = update.effective_user
+    chat_type = update.effective_chat.type
+    
+    # Chỉ tạo kèo trong chat riêng
+    if chat_type != "private":
+        await update.message.reply_text("✂️ Vào chat riêng với Bot để tạo kèo Kéo Búa Bao!")
+        return
+    
+    txt = (
+        "✂️ <b>KÉO BÚA BAO</b> ✊\n"
+        "━━━━━━━━━━━━━━━━\n"
+        "Tạo kèo thách đấu, chờ người nhận!\n"
+        "Cả 2 chọn bí mật, reveal cùng lúc.\n"
+        "━━━━━━━━━━━━━━━━\n"
+        "🪙 Chọn mức cược:"
+    )
+    
+    kb = [
+        [
+            InlineKeyboardButton("10k Xu", callback_data="rps_create_10000"),
+            InlineKeyboardButton("20k Xu", callback_data="rps_create_20000")
+        ],
+        [
+            InlineKeyboardButton("50k Xu", callback_data="rps_create_50000"),
+            InlineKeyboardButton("100k Xu", callback_data="rps_create_100000")
+        ],
+        [InlineKeyboardButton("❌ Đóng", callback_data="close_menu")]
+    ]
+    
+    await update.message.reply_text(txt, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
+
+
+async def handle_rps_create(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Tạo kèo Kéo Búa Bao"""
+    query = update.callback_query
+    user = query.from_user
+    data = query.data
+    
+    amount = int(data.replace("rps_create_", ""))
+    
+    db = SessionLocal()
+    emp = db.query(Employee).filter(Employee.telegram_id == str(user.id)).first()
+    
+    if not emp or emp.coin < amount:
+        await query.answer("💸 Không đủ Xu!", show_alert=True)
+        db.close()
+        return
+    
+    await query.edit_message_text(f"✅ Đã gửi thách đấu <b>{amount:,.0f} Xu</b> vào nhóm!", parse_mode="HTML")
+    
+    # Gửi vào topic Game
+    msg_content = (
+        f"✂️ <b>KÉO BÚA BAO</b> ✊\n"
+        f"━━━━━━━━━━━━━━━━\n"
+        f"👤 <b>{emp.name}</b> thách đấu!\n"
+        f"🪙 Cược: <b>{amount:,.0f} Xu</b>\n"
+        f"━━━━━━━━━━━━━━━━\n"
+        f"👇 Ai dám nhận?"
+    )
+    
+    kb = [[InlineKeyboardButton("✊ NHẬN KÈO", callback_data="rps_join")]]
+    
+    try:
+        sent_msg = await context.bot.send_message(
+            chat_id=MAIN_GROUP_ID,
+            message_thread_id=GAME_TOPIC_ID,
+            text=msg_content,
+            reply_markup=InlineKeyboardMarkup(kb),
+            parse_mode="HTML"
+        )
+        
+        # Lưu thông tin trận đấu
+        ACTIVE_RPS_MATCHES[sent_msg.message_id] = {
+            "creator_id": str(user.id),
+            "creator_name": emp.name,
+            "amount": amount,
+            "creator_choice": None,
+            "joiner_id": None,
+            "joiner_name": None,
+            "joiner_choice": None
+        }
+    except Exception as e:
+        await context.bot.send_message(user.id, f"⚠️ Lỗi: {e}")
+    
+    db.close()
+
+
+async def handle_rps_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Nhận kèo Kéo Búa Bao"""
+    query = update.callback_query
+    user = query.from_user
+    msg_id = query.message.message_id
+    
+    match = ACTIVE_RPS_MATCHES.get(msg_id)
+    if not match:
+        await query.answer("❌ Kèo đã hết hạn!", show_alert=True)
+        return
+    
+    if match["joiner_id"]:
+        await query.answer("❌ Đã có người nhận rồi!", show_alert=True)
+        return
+    
+    if str(user.id) == match["creator_id"]:
+        await query.answer("🚫 Không thể tự chơi với mình!", show_alert=True)
+        return
+    
+    db = SessionLocal()
+    joiner = db.query(Employee).filter(Employee.telegram_id == str(user.id)).first()
+    creator = db.query(Employee).filter(Employee.telegram_id == match["creator_id"]).first()
+    
+    if not joiner or joiner.coin < match["amount"]:
+        await query.answer("💸 Không đủ Xu!", show_alert=True)
+        db.close()
+        return
+    
+    # Cập nhật trận đấu
+    match["joiner_id"] = str(user.id)
+    match["joiner_name"] = joiner.name
+    
+    # Cập nhật tin nhắn
+    txt = (
+        f"✂️ <b>KÉO BÚA BAO</b> ✊\n"
+        f"━━━━━━━━━━━━━━━━\n"
+        f"👤 {match['creator_name']} ⚔️ {joiner.name}\n"
+        f"🪙 Cược: <b>{match['amount']:,.0f} Xu</b>\n"
+        f"━━━━━━━━━━━━━━━━\n"
+        f"⏳ Đang chờ cả 2 chọn..."
+    )
+    
+    await query.edit_message_text(txt, parse_mode="HTML")
+    
+    # Gửi tin nhắn riêng cho cả 2 người chọn
+    choice_kb = [
+        [
+            InlineKeyboardButton("✊ Búa", callback_data=f"rps_choose_rock_{msg_id}"),
+            InlineKeyboardButton("✋ Bao", callback_data=f"rps_choose_paper_{msg_id}"),
+            InlineKeyboardButton("✌️ Kéo", callback_data=f"rps_choose_scissors_{msg_id}")
+        ]
+    ]
+    
+    choose_txt = f"✂️ <b>CHỌN VŨ KHÍ</b>\n\n⚔️ Trận với <b>{joiner.name}</b>\n🪙 Cược: {match['amount']:,.0f} Xu"
+    choose_txt2 = f"✂️ <b>CHỌN VŨ KHÍ</b>\n\n⚔️ Trận với <b>{match['creator_name']}</b>\n🪙 Cược: {match['amount']:,.0f} Xu"
+    
+    try:
+        await context.bot.send_message(
+            chat_id=match["creator_id"],
+            text=choose_txt,
+            reply_markup=InlineKeyboardMarkup(choice_kb),
+            parse_mode="HTML"
+        )
+        await context.bot.send_message(
+            chat_id=match["joiner_id"],
+            text=choose_txt2,
+            reply_markup=InlineKeyboardMarkup(choice_kb),
+            parse_mode="HTML"
+        )
+    except Exception as e:
+        print(f"Lỗi gửi tin nhắn chọn: {e}")
+    
+    db.close()
+    await query.answer("✅ Đã nhận kèo! Check tin nhắn riêng để chọn!")
+
+
+async def handle_rps_choose(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Xử lý khi người chơi chọn Kéo/Búa/Bao"""
+    query = update.callback_query
+    user = query.from_user
+    data = query.data  # rps_choose_rock_12345
+    
+    parts = data.split("_")
+    choice = f"rps_{parts[2]}"  # rps_rock, rps_paper, rps_scissors
+    msg_id = int(parts[3])
+    
+    match = ACTIVE_RPS_MATCHES.get(msg_id)
+    if not match:
+        await query.answer("❌ Trận đấu đã kết thúc!", show_alert=True)
+        return
+    
+    user_id = str(user.id)
+    choice_emoji, choice_name = RPS_CHOICES[choice]
+    
+    # Lưu lựa chọn
+    if user_id == match["creator_id"]:
+        if match["creator_choice"]:
+            await query.answer("⚠️ Bạn đã chọn rồi!", show_alert=True)
+            return
+        match["creator_choice"] = choice
+        await query.edit_message_text(f"✅ Bạn đã chọn <b>{choice_emoji} {choice_name}</b>\n\n⏳ Chờ đối thủ...", parse_mode="HTML")
+    elif user_id == match["joiner_id"]:
+        if match["joiner_choice"]:
+            await query.answer("⚠️ Bạn đã chọn rồi!", show_alert=True)
+            return
+        match["joiner_choice"] = choice
+        await query.edit_message_text(f"✅ Bạn đã chọn <b>{choice_emoji} {choice_name}</b>\n\n⏳ Chờ đối thủ...", parse_mode="HTML")
+    else:
+        await query.answer("❌ Bạn không trong trận này!", show_alert=True)
+        return
+    
+    # Kiểm tra cả 2 đã chọn chưa
+    if match["creator_choice"] and match["joiner_choice"]:
+        await resolve_rps_match(context, msg_id, match)
+
+
+async def resolve_rps_match(context: ContextTypes.DEFAULT_TYPE, msg_id: int, match: dict):
+    """Xử lý kết quả trận đấu"""
+    db = SessionLocal()
+    
+    creator = db.query(Employee).filter(Employee.telegram_id == match["creator_id"]).first()
+    joiner = db.query(Employee).filter(Employee.telegram_id == match["joiner_id"]).first()
+    
+    c_choice = match["creator_choice"]
+    j_choice = match["joiner_choice"]
+    c_emoji, c_name = RPS_CHOICES[c_choice]
+    j_emoji, j_name = RPS_CHOICES[j_choice]
+    amount = match["amount"]
+    
+    # Xác định người thắng
+    if c_choice == j_choice:
+        result = "🤝 HÒA!"
+        winner = None
+    elif RPS_RULES[c_choice] == j_choice:
+        result = f"🏆 <b>{match['creator_name']}</b> THẮNG!"
+        winner = "creator"
+    else:
+        result = f"🏆 <b>{match['joiner_name']}</b> THẮNG!"
+        winner = "joiner"
+    
+    # Xử lý tiền
+    if winner == "creator":
+        creator.coin += amount  # Thắng: +tiền cược của đối thủ
+        joiner.coin -= amount   # Thua: -tiền cược
+    elif winner == "joiner":
+        joiner.coin += amount
+        creator.coin -= amount
+    # Hòa: không ai mất tiền
+    
+    db.commit()
+    
+    # Cập nhật tin nhắn trong group
+    final_msg = (
+        f"✂️ <b>KẾT QUẢ KÉO BÚA BAO</b> ✊\n"
+        f"━━━━━━━━━━━━━━━━\n"
+        f"👤 {match['creator_name']}: {c_emoji}\n"
+        f"👤 {match['joiner_name']}: {j_emoji}\n"
+        f"━━━━━━━━━━━━━━━━\n"
+        f"{result}\n"
+        f"🪙 Cược: {amount:,.0f} Xu"
+    )
+    
+    try:
+        await context.bot.edit_message_text(
+            chat_id=MAIN_GROUP_ID,
+            message_id=msg_id,
+            text=final_msg,
+            parse_mode="HTML"
+        )
+    except:
+        pass
+    
+    # Thông báo riêng cho từng người
+    if winner == "creator":
+        await context.bot.send_message(match["creator_id"], f"🎉 Bạn THẮNG! +{amount:,.0f} Xu\n🪙 Xu: {creator.coin:,.0f}")
+        await context.bot.send_message(match["joiner_id"], f"😢 Bạn THUA! -{amount:,.0f} Xu\n🪙 Xu: {joiner.coin:,.0f}")
+    elif winner == "joiner":
+        await context.bot.send_message(match["joiner_id"], f"🎉 Bạn THẮNG! +{amount:,.0f} Xu\n🪙 Xu: {joiner.coin:,.0f}")
+        await context.bot.send_message(match["creator_id"], f"😢 Bạn THUA! -{amount:,.0f} Xu\n🪙 Xu: {creator.coin:,.0f}")
+    else:
+        await context.bot.send_message(match["creator_id"], f"🤝 HÒA! Không ai mất Xu")
+        await context.bot.send_message(match["joiner_id"], f"🤝 HÒA! Không ai mất Xu")
+    
+    # Xóa trận đấu
+    del ACTIVE_RPS_MATCHES[msg_id]
+    db.close()
 
 # --- WEB & MAIN ---
 bot_app = Application.builder().token(TOKEN).build()
@@ -1098,6 +1546,15 @@ bot_app.add_handler(CommandHandler("order", order_command))
 bot_app.add_handler(CommandHandler("dangky", dangky_command))
 bot_app.add_handler(CommandHandler("dsnv", dsnv_command))
 bot_app.add_handler(CommandHandler("xoanv", xoanv_command))
+bot_app.add_handler(CommandHandler("slot", slot_command))
+bot_app.add_handler(CallbackQueryHandler(handle_slot_play, pattern="^slot_play_"))
+bot_app.add_handler(CallbackQueryHandler(handle_slot_menu, pattern="^slot_menu$"))
+bot_app.add_handler(CommandHandler("rps", rps_command))
+bot_app.add_handler(CommandHandler("kbb", rps_command))  # Lối tắt tiếng Việt
+bot_app.add_handler(CallbackQueryHandler(handle_rps_create, pattern="^rps_create_"))
+bot_app.add_handler(CallbackQueryHandler(handle_rps_join, pattern="^rps_join$"))
+bot_app.add_handler(CallbackQueryHandler(handle_rps_choose, pattern="^rps_choose_"))
+bot_app.add_handler(CallbackQueryHandler(lambda u, c: rps_command(u, c), pattern="^rps_menu$"))
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -1216,7 +1673,8 @@ async def submit_order(order: OrderData):
         ]
         
         await bot_app.bot.send_message(
-            chat_id=MAIN_GROUP_ID, 
+            chat_id=MAIN_GROUP_ID,
+            message_thread_id=ORDER_TOPIC_ID,
             text=msg, 
             reply_markup=InlineKeyboardMarkup(kb),
             parse_mode="HTML"
@@ -1260,6 +1718,7 @@ def get_review():
         "Trà trái cây tươi mát, uống là nghiền. Sẽ quay lại!"
     ])
     return {"content": content}
+
 
 
 
