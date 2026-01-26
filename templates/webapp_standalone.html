@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Order - KHỈ MILKTEA</title>
+    <!-- PWA Support -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#1A5336">
+    <link rel="apple-touch-icon" href="/static/logo.png">
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        :root { --primary: #1A5336; --accent: #F4D03F; --bg: #f0f2f5; }
+        body { background-color: var(--bg); font-family: -apple-system, sans-serif; padding-bottom: 90px; -webkit-tap-highlight-color: transparent; }
+        
+        /* HEADER KIOTVIET STYLE */
+        .header-bar { background: var(--primary); color: white; padding: 10px 15px; position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .cat-scroll { overflow-x: auto; white-space: nowrap; padding: 10px 0; -webkit-overflow-scrolling: touch; background: white; border-bottom: 1px solid #ddd; }
+        .cat-chip { display: inline-block; padding: 6px 15px; margin-right: 8px; border-radius: 20px; background: #eee; color: #555; font-weight: 600; font-size: 14px; border: none; }
+        .cat-chip.active { background: var(--primary); color: white; }
+
+        /* DANH SÁCH MÓN (LIST VIEW) */
+        .product-item { background: white; padding: 10px; border-bottom: 1px solid #eee; display: flex; align-items: center; gap: 12px; }
+        .prod-img { width: 60px; height: 60px; border-radius: 6px; object-fit: cover; background: #eee; }
+        .prod-info { flex: 1; }
+        .prod-name { font-weight: 700; font-size: 15px; margin-bottom: 2px; color: #333; }
+        .prod-price { color: var(--primary); font-weight: bold; }
+        .btn-add { width: 35px; height: 35px; border-radius: 50%; background: var(--primary); color: white; border: none; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+
+        /* MODAL CHỌN TOPPING */
+        .modal-bottom { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-radius: 20px 20px 0 0; z-index: 2000; transform: translateY(100%); transition: transform 0.3s; display: flex; flex-direction: column; max-height: 90vh; box-shadow: 0 -5px 20px rgba(0,0,0,0.2); }
+        .modal-bottom.show { transform: translateY(0); }
+        .modal-header { padding: 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+        .modal-body { overflow-y: auto; padding: 15px; flex: 1; }
+        .section-title { font-size: 13px; font-weight: bold; text-transform: uppercase; color: #888; margin: 15px 0 8px; }
+        
+        /* Checkbox Topping đẹp */
+        .topping-item { display: flex; justify-content: space-between; padding: 10px; border: 1px solid #eee; border-radius: 8px; margin-bottom: 8px; align-items: center; }
+        .topping-item.active { border-color: var(--primary); background: #e8f5e9; }
+        .t-name { font-weight: 500; }
+        .t-price { font-size: 13px; color: #666; }
+        
+        /* Note Tags */
+        .note-tag { padding: 6px 12px; border: 1px solid #ddd; border-radius: 6px; background: white; font-size: 13px; margin-right: 5px; margin-bottom: 5px; display: inline-block; cursor: pointer; }
+        .note-tag.active { background: #666; color: white; border-color: #666; }
+
+        /* CART BAR */
+        .cart-bar { position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 12px 15px; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); z-index: 1500; display: flex; align-items: center; justify-content: space-between; border-top: 1px solid #eee; }
+        .btn-submit { background: var(--primary); color: white; border: none; padding: 12px 30px; border-radius: 8px; font-weight: bold; font-size: 16px; }
+        .btn-submit:disabled { background: #ccc; }
+        
+        /* Overlay */
+        .overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1900; display: none; }
+        .overlay.show { display: block; }
+
+        /* Counter */
+        .qty-box { display: flex; align-items: center; gap: 10px; background: #f5f5f5; padding: 5px; border-radius: 8px; }
+        .qty-btn { width: 30px; height: 30px; background: white; border: 1px solid #ddd; border-radius: 6px; font-weight: bold; }
+        
+        /* Staff name click */
+        .staff-info { cursor: pointer; }
+        .staff-info:hover { opacity: 0.8; }
+    </style>
+</head>
+<body>
+
+<!-- 1. HEADER -->
+<div class="header-bar d-flex justify-content-between align-items-center">
+    <div>
+        <div style="font-size: 12px; opacity: 0.8;">Đơn #<span id="orderId">...</span></div>
+        <input type="text" id="customerName" placeholder="Tên khách..." style="background: rgba(255,255,255,0.2); border:none; color:white; padding: 4px 8px; border-radius: 4px; font-size: 14px; width: 150px; outline: none;">
+    </div>
+    <div style="text-align: right;">
+        <div style="font-weight: bold;">KHỈ MILKTEA 🐵</div>
+        <div class="staff-info" style="font-size: 11px; opacity: 0.8;" onclick="changeStaffName()">
+            👤 <span id="staffDisplay">---</span> ✏️
+        </div>
+    </div>
+</div>
+
+<!-- 2. CATEGORY -->
+<div class="cat-scroll" id="catList">
+    <!-- JS render -->
+</div>
+
+<!-- 3. LIST PRODUCT -->
+<div id="productList" style="padding-bottom: 20px;">
+    <!-- JS render -->
+</div>
+
+<!-- 4. CART BAR -->
+<div class="cart-bar" id="cartBar" style="display: none !important;">
+    <div>
+        <div style="font-size: 13px; color: #666;"><span id="totalQty">0</span> món</div>
+        <div style="font-size: 18px; font-weight: 800; color: var(--primary);" id="totalPrice">0đ</div>
+    </div>
+    <button class="btn-submit" onclick="submitOrder()">GỬI BẾP 🚀</button>
+</div>
+
+<!-- 5. MODAL -->
+<div class="overlay" id="overlay" onclick="closeModal()"></div>
+<div class="modal-bottom" id="modal">
+    <div class="modal-header">
+        <div>
+            <div id="mName" style="font-weight: 800; font-size: 18px;">Tên món</div>
+            <div id="mBasePrice" style="color: var(--primary); font-weight: bold;">25,000đ</div>
+        </div>
+        <div class="qty-box">
+            <button class="qty-btn" onclick="adjustQty(-1)">-</button>
+            <span id="mQty" style="font-weight: bold; width: 20px; text-align: center;">1</span>
+            <button class="qty-btn" onclick="adjustQty(1)">+</button>
+        </div>
+    </div>
+     <div class="modal-body">
+        
+        <!-- 1. ĐƯA GHI CHÚ LÊN ĐẦU -->
+        <div class="section-title">📝 Ghi chú (Đá/Ngọt)</div>
+        <div id="listNotes">
+            <div class="note-tag" onclick="toggleNote(this)">Ít đá</div>
+            <div class="note-tag" onclick="toggleNote(this)">Không đá</div>
+            <div class="note-tag" onclick="toggleNote(this)">Ít ngọt</div>
+            <div class="note-tag" onclick="toggleNote(this)">Nhiều ngọt</div>
+            <div class="note-tag" onclick="toggleNote(this)">Mang về</div>
+        </div>
+
+        <!-- 2. ĐẾN PHẦN CHỌN TOPPING (Sửa tiêu đề để nhân viên hiểu) -->
+        <div class="section-title" style="color: var(--primary); margin-top: 20px;">
+            🍹 Tùy chọn Topping<br>
+            <small style="font-weight: normal; color: #666; font-size: 11px;">(Không chọn = Mặc định Full Topping)</small>
+        </div>
+        
+        <!-- Render danh sách Topping -->
+        <div id="listTopping5k"></div>
+        <div id="listTopping10k"></div>
+    </div>
+    <div style="padding: 15px; border-top: 1px solid #eee;">
+        <button class="btn-submit w-100" onclick="addToCart()">THÊM (<span id="mBtnTotal">0</span>đ)</button>
+    </div>
+</div>
+
+<script>
+    const categories = [
+        { id: 'trasua', name: 'Trà Sữa' },
+        { id: 'traicay', name: 'Trà Trái Cây' },
+        { id: 'macchiato', name: 'Macchiato' },
+        { id: 'dacbiet', name: 'Đặc Biệt/Latte' },
+        { id: 'topping', name: 'Topping Thêm' }
+    ];
+
+    const products = [
+        // TRÀ SỮA (25K)
+        { id: 1, cat: 'trasua', name: 'TS Truyền Thống', price: 25000, img: 'https://img.icons8.com/emoji/96/bubble-tea-emoji.png' },
+        { id: 2, cat: 'trasua', name: 'TS Matcha', price: 25000, img: 'https://img.icons8.com/emoji/96/bubble-tea-emoji.png' },
+        { id: 3, cat: 'trasua', name: 'TS Caramel', price: 25000, img: 'https://img.icons8.com/emoji/96/bubble-tea-emoji.png' },
+        { id: 4, cat: 'trasua', name: 'TS Ô Long', price: 25000, img: 'https://img.icons8.com/emoji/96/bubble-tea-emoji.png' },
+        { id: 5, cat: 'trasua', name: 'TS Chocolate', price: 25000, img: 'https://img.icons8.com/emoji/96/bubble-tea-emoji.png' },
+        { id: 6, cat: 'trasua', name: 'TS Đào', price: 25000, img: 'https://img.icons8.com/emoji/96/bubble-tea-emoji.png' },
+
+        // TRÀ TRÁI CÂY (27K)
+        { id: 10, cat: 'traicay', name: 'Trà Đác Dâu Tằm', price: 27000, img: '/static/dautam.jpg' },
+        { id: 11, cat: 'traicay', name: 'Trà Đác Thơm', price: 27000, img: 'https://img.icons8.com/emoji/96/tropical-drink.png' },
+        { id: 12, cat: 'traicay', name: 'Trà Ổi Hồng', price: 27000, img: 'https://img.icons8.com/emoji/96/tropical-drink.png' },
+        { id: 13, cat: 'traicay', name: 'Trà Nhiệt Đới', price: 27000, img: 'https://img.icons8.com/emoji/96/tropical-drink.png' },
+        { id: 14, cat: 'traicay', name: 'Trà Táo Xanh', price: 27000, img: 'https://img.icons8.com/emoji/96/tropical-drink.png' },
+        { id: 15, cat: 'traicay', name: 'Trà Dưa Lưới', price: 27000, img: 'https://img.icons8.com/emoji/96/tropical-drink.png' },
+        { id: 16, cat: 'traicay', name: 'Trà Mãng Cầu', price: 27000, img: 'https://img.icons8.com/emoji/96/tropical-drink.png' },
+        { id: 17, cat: 'traicay', name: 'Trà Cóc Hạt Đác', price: 27000, img: 'https://img.icons8.com/emoji/96/tropical-drink.png' },
+
+        // MACCHIATO (25K)
+        { id: 20, cat: 'macchiato', name: 'Trà Đào Macchiato', price: 25000, img: 'https://img.icons8.com/emoji/96/beverage-box-emoji.png' },
+        { id: 21, cat: 'macchiato', name: 'Trà Vải Macchiato', price: 25000, img: 'https://img.icons8.com/emoji/96/beverage-box-emoji.png' },
+        { id: 22, cat: 'macchiato', name: 'Trà Xoài Macchiato', price: 25000, img: 'https://img.icons8.com/emoji/96/beverage-box-emoji.png' },
+        { id: 23, cat: 'macchiato', name: 'Trà Dâu Macchiato', price: 25000, img: 'https://img.icons8.com/emoji/96/beverage-box-emoji.png' },
+        { id: 24, cat: 'macchiato', name: 'Hồng Trà Macchiato', price: 25000, img: 'https://img.icons8.com/emoji/96/beverage-box-emoji.png' },
+        { id: 25, cat: 'macchiato', name: 'Ô Long Macchiato', price: 25000, img: 'https://img.icons8.com/emoji/96/beverage-box-emoji.png' },
+        { id: 26, cat: 'macchiato', name: 'Matcha Macchiato', price: 25000, img: 'https://img.icons8.com/emoji/96/beverage-box-emoji.png' },
+
+        // ĐẶC BIỆT
+        { id: 30, cat: 'dacbiet', name: 'Trà Sữa Nướng', price: 30000, img: 'https://img.icons8.com/emoji/96/teacup-without-handle.png' },
+        { id: 31, cat: 'dacbiet', name: 'Sữa Chua Thạch Lựu', price: 30000, img: 'https://img.icons8.com/emoji/96/teacup-without-handle.png' },
+        { id: 32, cat: 'dacbiet', name: 'Trà Sữa Flan', price: 30000, img: 'https://img.icons8.com/emoji/96/teacup-without-handle.png' },
+        { id: 33, cat: 'dacbiet', name: 'Latte Matcha', price: 35000, img: 'https://img.icons8.com/emoji/96/teacup-without-handle.png' },
+        { id: 34, cat: 'dacbiet', name: 'Latte Cà Phê', price: 35000, img: 'https://img.icons8.com/emoji/96/teacup-without-handle.png' },
+        { id: 35, cat: 'dacbiet', name: 'Latte Chocolate', price: 35000, img: 'https://img.icons8.com/emoji/96/teacup-without-handle.png' },
+
+        // TOPPING THÊM
+        { id: 100, cat: 'topping', name: 'Thêm Trân Châu', price: 5000, img: 'https://img.icons8.com/color/96/tapioca-pearls.png' },
+        { id: 101, cat: 'topping', name: 'Thêm Phô Mai', price: 5000, img: 'https://img.icons8.com/color/96/cheese.png' },
+        { id: 102, cat: 'topping', name: 'Thêm Flan', price: 5000, img: 'https://img.icons8.com/color/96/creme-brulee.png' },
+        { id: 103, cat: 'topping', name: 'Thêm Đác Thơm', price: 10000, img: 'https://img.icons8.com/color/96/pineapple.png' },
+        { id: 104, cat: 'topping', name: 'Thêm Đác Dâu Tằm', price: 10000, img: 'https://img.icons8.com/color/96/strawberry.png' },
+        { id: 105, cat: 'topping', name: 'Thêm Ổi Hồng', price: 10000, img: 'https://img.icons8.com/color/96/guava.png' },
+        { id: 106, cat: 'topping', name: 'Thêm Mãng Cầu', price: 10000, img: 'https://img.icons8.com/color/96/custard-apple.png' },
+    ];
+
+    const topping5k = ["Trân Châu", "Củ Năng", "Phô Mai", "Rau Câu", "Khúc Bạch", "Sương Sáo", "Thạch Đào", "Flan Trứng", "Ngọc Trai", "Khoai Dẻo"];
+    const topping10k = ["Đác Thơm", "Đác Dâu Tằm", "Trái Cây Nhiệt Đới", "Táo Xanh", "Dưa Lưới", "Ổi Hồng", "Mãng Cầu"];
+
+    let cart = [];
+    let currentItem = null;
+
+    // --- INIT ---
+    function init() {
+        document.getElementById('orderId').innerText = Math.floor(Math.random() * 900) + 100;
+        
+        // Hiển thị tên nhân viên đã lưu
+        const staffName = localStorage.getItem('staff_name');
+        document.getElementById('staffDisplay').innerText = staffName || 'Chưa đặt tên';
+        
+        // Nếu chưa có tên, hỏi ngay
+        if (!staffName) {
+            setTimeout(() => {
+                changeStaffName();
+            }, 500);
+        }
+        
+        // Render Cats
+        const cList = document.getElementById('catList');
+        categories.forEach((c, i) => {
+            cList.innerHTML += `<button class="cat-chip ${i===0?'active':''}" onclick="filter('${c.id}', this)">${c.name}</button>`;
+        });
+
+        renderProd('trasua');
+    }
+
+    function changeStaffName() {
+        const currentName = localStorage.getItem('staff_name') || '';
+        const newName = prompt('Nhập tên của bạn:', currentName);
+        if (newName && newName.trim()) {
+            localStorage.setItem('staff_name', newName.trim());
+            document.getElementById('staffDisplay').innerText = newName.trim();
+        }
+    }
+
+    function filter(catId, btn) {
+        document.querySelectorAll('.cat-chip').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        renderProd(catId);
+    }
+
+    function renderProd(catId) {
+        const pList = document.getElementById('productList');
+        pList.innerHTML = '';
+        products.filter(p => p.cat === catId).forEach(p => {
+            pList.innerHTML += `
+                <div class="product-item" onclick="openModal(${p.id})">
+                    <img src="${p.img}" class="prod-img">
+                    <div class="prod-info">
+                        <div class="prod-name">${p.name}</div>
+                        <div class="prod-price">${p.price.toLocaleString()}đ</div>
+                    </div>
+                    <button class="btn-add">+</button>
+                </div>
+            `;
+        });
+    }
+
+    // --- MODAL LOGIC ---
+    function openModal(id) {
+        const p = products.find(x => x.id === id);
+        currentItem = { ...p, qty: 1, tops: [], notes: [] };
+        
+        document.getElementById('mName').innerText = p.name;
+        document.getElementById('mBasePrice').innerText = p.price.toLocaleString() + 'đ';
+        document.getElementById('mQty').innerText = 1;
+
+        // Render Toppings 
+        const t5 = document.getElementById('listTopping5k');
+        t5.innerHTML = topping5k.map(t => `
+            <div class="topping-item" onclick="toggleTop(this, '${t}', 0)">
+                <span class="t-name">${t}</span> 
+            </div>`).join('');
+
+        const t10 = document.getElementById('listTopping10k');
+        t10.innerHTML = topping10k.map(t => `
+            <div class="topping-item" onclick="toggleTop(this, '${t}', 0)">
+                <span class="t-name">${t}</span> 
+            </div>`).join('');
+
+        // Reset Notes
+        document.querySelectorAll('.note-tag').forEach(n => n.classList.remove('active'));
+
+        calcModalPrice();
+        document.getElementById('overlay').classList.add('show');
+        document.getElementById('modal').classList.add('show');
+    }
+
+    function closeModal() {
+        document.getElementById('overlay').classList.remove('show');
+        document.getElementById('modal').classList.remove('show');
+    }
+
+    function toggleTop(el, name, price) {
+        el.classList.toggle('active');
+        if(el.classList.contains('active')) {
+            currentItem.tops.push({name, price: 0}); 
+        } else {
+            currentItem.tops = currentItem.tops.filter(t => t.name !== name);
+        }
+        calcModalPrice();
+    }
+
+    function toggleNote(el) {
+        el.classList.toggle('active');
+        const txt = el.innerText;
+        if(el.classList.contains('active')) currentItem.notes.push(txt);
+        else currentItem.notes = currentItem.notes.filter(n => n !== txt);
+    }
+
+    function adjustQty(n) {
+        if(currentItem.qty + n > 0) {
+            currentItem.qty += n;
+            document.getElementById('mQty').innerText = currentItem.qty;
+            calcModalPrice();
+        }
+    }
+
+    function calcModalPrice() {
+        let toppingPrice = currentItem.tops.reduce((sum, t) => sum + t.price, 0);
+        let total = (currentItem.price + toppingPrice) * currentItem.qty;
+        document.getElementById('mBtnTotal').innerText = total.toLocaleString();
+    }
+
+    function addToCart() {
+        cart.push(currentItem);
+        closeModal();
+        updateCartBar();
+    }
+
+    function updateCartBar() {
+        const bar = document.getElementById('cartBar');
+        if(cart.length > 0) {
+            bar.style.setProperty('display', 'flex', 'important');
+            const qty = cart.reduce((s, i) => s + i.qty, 0);
+            const total = cart.reduce((s, i) => {
+                let tPrice = i.tops.reduce((a, b) => a + b.price, 0);
+                return s + ((i.price + tPrice) * i.qty);
+            }, 0);
+            
+            document.getElementById('totalQty').innerText = qty;
+            document.getElementById('totalPrice').innerText = total.toLocaleString() + 'đ';
+        } else {
+            bar.style.display = 'none';
+        }
+    }
+
+    // === HÀM GỬI ORDER QUA API (KHÔNG CẦN TELEGRAM) ===
+    async function submitOrder() {
+        // Kiểm tra tên nhân viên
+        let staffName = localStorage.getItem('staff_name');
+        if (!staffName) {
+            changeStaffName();
+            staffName = localStorage.getItem('staff_name');
+            if (!staffName) {
+                alert('⚠️ Vui lòng nhập tên của bạn!');
+                return;
+            }
+        }
+
+        const total = cart.reduce((s, i) => {
+            let tPrice = i.tops.reduce((a, b) => a + b.price, 0);
+            return s + ((i.price + tPrice) * i.qty);
+        }, 0);
+
+        const data = {
+            order_id: document.getElementById('orderId').innerText,
+            customer: document.getElementById('customerName').value || 'Khách lẻ',
+            staff_name: staffName,
+            items: cart.map(i => ({
+                name: i.name,
+                price: i.price,
+                qty: i.qty,
+                tops: i.tops,
+                notes: i.notes
+            })),
+            total: total
+        };
+
+        // Hiển thị loading
+        const btn = document.querySelector('.cart-bar .btn-submit');
+        const oldText = btn.innerHTML;
+        btn.innerHTML = 'Đang gửi...';
+        btn.disabled = true;
+
+        try {
+            const response = await fetch('/api/submit_order', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                // Thông báo thành công
+                alert('✅ Đã gửi order thành công!');
+                
+                // Reset
+                cart = [];
+                updateCartBar();
+                document.getElementById('customerName').value = '';
+                document.getElementById('orderId').innerText = Math.floor(Math.random() * 900) + 100;
+            } else {
+                alert('❌ Lỗi: ' + result.message);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('❌ Không thể kết nối server! Kiểm tra lại mạng.');
+        }
+
+        btn.innerHTML = oldText;
+        btn.disabled = false;
+    }
+
+    init();
+</script>
+</body>
+</html>
