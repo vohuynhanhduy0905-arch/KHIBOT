@@ -949,6 +949,7 @@ async def web_app_data_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         await context.bot.send_message(
             chat_id=MAIN_GROUP_ID, 
             text=msg, 
+            message_thread_id=ORDER_TOPIC_ID,
             reply_markup=InlineKeyboardMarkup(kb),
             parse_mode="HTML"
         )
@@ -1523,7 +1524,7 @@ async def resolve_rps_match(context: ContextTypes.DEFAULT_TYPE, msg_id: int, mat
     db.close()
 
 # === ĐĂNG KÝ HANDLERS ===
-
+bot_app = Application.builder().token(TOKEN).build()
 bot_app.add_handler(CommandHandler("start", start_command))
 bot_app.add_handler(CommandHandler("me", me_command))
 bot_app.add_handler(CommandHandler("top", top_command))
@@ -1720,6 +1721,7 @@ def get_review():
         "Trà trái cây tươi mát, uống là nghiền. Sẽ quay lại!"
     ])
     return {"content": content}
+
 
 
 
