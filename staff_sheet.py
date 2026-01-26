@@ -1,18 +1,31 @@
 # --- FILE: staff_sheet.py ---
 # Quản lý nhân viên qua Google Sheet
 
+import os
+import json
 import gspread
 import random
 from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime
 
 SHEET_NAME = "Trà Sữa Khỉ GG MAP"
-STAFF_SHEET_NAME = "Nhân viên"  # Tên tab sheet
+STAFF_SHEET_NAME = "Nhân viên"
 
 def get_staff_sheet():
     """Lấy sheet Nhân viên, tạo mới nếu chưa có"""
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    creds = ServiceAccountCredentials.from_json_keyfile_name("service_account.json", scope)
+    
+    # Đọc credentials từ Environment Variable (Render) hoặc file (local)
+    service_account_info = os.environ.get("GOOGLE_SERVICE_ACCOUNT")
+    
+    if service_account_info:
+        # Chạy trên Render (dùng ENV)
+        creds_dict = json.loads(service_account_info)
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+    else:
+        # Chạy local (dùng file)
+        creds = ServiceAccountCredentials.from_json_keyfile_name("service_account.json", scope)
+    
     client = gspread.authorize(creds)
     spreadsheet = client.open(SHEET_NAME)
     
