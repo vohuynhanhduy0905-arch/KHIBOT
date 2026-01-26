@@ -33,7 +33,7 @@ from telegram.ext import (
 )
 # --- TÌM DÒNG IMPORT DATABASE VÀ SỬA THÀNH ---
 from database import SessionLocal, Employee, ReviewLog, Review, init_db, ShopLog # <--- Thêm ShopLog
-from datetime import datetime, date # <--- Thêm cái này để tính ngày giờ
+from datetime import datetime, date, timedelta  # Thêm timedelta
 from sqlalchemy import desc
 from sqlalchemy.sql import func  
 from PIL import Image, ImageDraw, ImageFont
@@ -2126,6 +2126,7 @@ def get_review():
         "Trà trái cây tươi mát, uống là nghiền. Sẽ quay lại!"
     ])
     return {"content": content}
+
 
 
 
