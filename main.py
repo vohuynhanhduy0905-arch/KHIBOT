@@ -4,6 +4,8 @@ import asyncio
 import io
 import time
 import json
+from pydantic import BaseModel
+from typing import List, Optional
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
@@ -1017,6 +1019,64 @@ def home(request: Request, ref: str = None):
 @app.get("/webapp", response_class=HTMLResponse)
 async def webapp(request: Request):
     return templates.TemplateResponse("webapp.html", {"request": request})
+
+@app.get("/order", response_class=HTMLResponse)
+async def webapp_standalone(request: Request):
+    return templates.TemplateResponse("webapp_standalone.html", {"request": request})
+# --- API ĐỂ WEBAPP GỬI ORDER TRỰC TIẾP (KHÔNG CẦN QUA TELEGRAM) ---
+
+class ToppingItem(BaseModel):
+    name: str
+    price: int = 0
+
+class OrderItem(BaseModel):
+    name: str
+    price: int
+    qty: int
+    tops: List[ToppingItem] = []
+    notes: List[str] = []
+
+class OrderData(BaseModel):
+    order_id: str
+    customer: str
+    staff_name: str  # Tên nhân viên order
+    items: List[OrderItem]
+    total: int
+
+@app.post("/api/submit_order")
+async def submit_order(order: OrderData):
+    try:
+        # Định dạng tin nhắn giống như web_app_data_handler
+        msg = f"🔔 <b>ĐƠN: {order.customer.upper()}</b> (từ {order.staff_name})\n"
+        msg += "━━━━━━━━━━━━━━━━━━\n"
+        
+        for item in order.items:
+            extra = []
+            if item.tops:
+                extra.extend([t.name for t in item.tops])
+            if item.notes:
+                extra.extend(item.notes)
+            
+            detail = f" ({', '.join(extra)})" if extra else ""
+            msg += f"• {item.qty}x <b>{item.name}</b>{detail}\n"
+        
+        msg += f"━━━━━━━━━━━━━━━━━━\n"
+        msg += f"💰 <b>TỔNG: {order.total/1000:,.0f}k</b>"
+
+        # Nút bấm để thu ngân xác nhận
+        kb = [[InlineKeyboardButton("✅ ĐÃ NHẬP MÁY", callback_data="pos_done")]]
+        
+        # Gửi về group
+        await bot_app.bot.send_message(
+            chat_id=MAIN_GROUP_ID, 
+            text=msg, 
+            reply_markup=InlineKeyboardMarkup(kb),
+            parse_mode="HTML"
+        )
+        
+        return {"success": True, "message": "Đã gửi order thành công!"}
+    except Exception as e:
+        return {"success": False, "message": str(e)}
 
 @app.get("/api/get_review")
 def get_review():
