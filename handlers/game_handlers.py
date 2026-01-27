@@ -65,7 +65,7 @@ async def handle_pk_create(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     await query.edit_message_text(f"✅ Đã gửi thách đấu <b>{amount:,.0f} Xu</b> vào nhóm!", parse_mode="HTML")
     
-    # Gửi vào topic Game
+    # Gửi vào topic Game KÈM ẢNH
     msg_content = (
         f"🥊 <b>PK XÚC XẮC 1vs1</b> 🎲\n"
         f"━━━━━━━━━━━━━━━━\n"
@@ -79,10 +79,12 @@ async def handle_pk_create(update: Update, context: ContextTypes.DEFAULT_TYPE):
     kb = [[InlineKeyboardButton("🎲 NHẬN KÈO", callback_data="pk_join")]]
     
     try:
-        sent_msg = await context.bot.send_message(
+        # Gửi ảnh kèm caption
+        sent_msg = await context.bot.send_photo(
             chat_id=MAIN_GROUP_ID,
             message_thread_id=GAME_TOPIC_ID,
-            text=msg_content,
+            photo=open("static/pk_invite.jpg", "rb"),
+            caption=msg_content,
             reply_markup=InlineKeyboardMarkup(kb),
             parse_mode="HTML"
         )
@@ -463,10 +465,12 @@ async def handle_kbb_create(update: Update, context: ContextTypes.DEFAULT_TYPE):
     kb = [[InlineKeyboardButton("✊ NHẬN KÈO", callback_data="kbb_join")]]
     
     try:
-        sent_msg = await context.bot.send_message(
+        # Gửi ảnh kèm caption
+        sent_msg = await context.bot.send_photo(
             chat_id=MAIN_GROUP_ID,
             message_thread_id=GAME_TOPIC_ID,
-            text=msg_content,
+            photo=open("static/pk_invite.jpg", "rb"),
+            caption=msg_content,
             reply_markup=InlineKeyboardMarkup(kb),
             parse_mode="HTML"
         )
@@ -526,14 +530,20 @@ async def handle_kbb_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"⏳ Đang chờ cả 2 chọn..."
     )
     
-    await query.edit_message_text(txt, parse_mode="HTML")
+    # Cập nhật tin nhắn trong group
+    try:
+        await query.message.edit_caption(caption=txt, parse_mode="HTML")
+    except:
+        pass
     
+    # Tạo link deep link để nhảy sang bot
+    bot_username = "trasuakhibot"
+    
+    # Gửi nút bấm để nhảy sang bot chọn vũ khí
     choice_kb = [
-        [
-            InlineKeyboardButton("✊ Búa", callback_data=f"kbb_choose_rock_{msg_id}"),
-            InlineKeyboardButton("✋ Bao", callback_data=f"kbb_choose_paper_{msg_id}"),
-            InlineKeyboardButton("✌️ Kéo", callback_data=f"kbb_choose_scissors_{msg_id}")
-        ]
+        [InlineKeyboardButton("✊ Búa", callback_data=f"kbb_choose_rock_{msg_id}"),
+         InlineKeyboardButton("✋ Bao", callback_data=f"kbb_choose_paper_{msg_id}"),
+         InlineKeyboardButton("✌️ Kéo", callback_data=f"kbb_choose_scissors_{msg_id}")]
     ]
     
     choose_txt1 = f"✂️ <b>CHỌN VŨ KHÍ</b>\n\n⚔️ Trận với <b>{joiner_name}</b>\n🪙 Cược: {match['amount']:,.0f} Xu"
@@ -555,7 +565,18 @@ async def handle_kbb_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         print(f"Lỗi gửi tin chọn KBB: {e}")
     
-    await query.answer("✅ Đã nhận kèo! Check tin nhắn riêng để chọn!")
+    # Thông báo và gửi link nhảy sang bot
+    await query.answer("✅ Đã nhận kèo!")
+    
+    # Gửi link để joiner nhảy sang bot
+    link_kb = [[InlineKeyboardButton("👉 VÀO BOT CHỌN NGAY", url=f"https://t.me/{bot_username}")]]
+    await context.bot.send_message(
+        chat_id=MAIN_GROUP_ID,
+        message_thread_id=GAME_TOPIC_ID,
+        text=f"⚔️ <b>{joiner_name}</b> đã nhận kèo!\n\n👉 Cả 2 vào bot để chọn vũ khí!",
+        reply_markup=InlineKeyboardMarkup(link_kb),
+        parse_mode="HTML"
+    )
 
 
 async def handle_kbb_choose(update: Update, context: ContextTypes.DEFAULT_TYPE):
