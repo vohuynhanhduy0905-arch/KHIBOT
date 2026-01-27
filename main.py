@@ -559,10 +559,6 @@ def home(request: Request, ref: str = None):
         db.close()
     return templates.TemplateResponse("index.html", {"request": request, "maps_url": MAPS_URL, "staff_emoji": emoji})
 
-@app.get("/webapp", response_class=HTMLResponse)
-async def webapp(request: Request):
-    return templates.TemplateResponse("webapp.html", {"request": request})
-
 @app.get("/order", response_class=HTMLResponse)
 async def webapp_standalone(request: Request):
     return templates.TemplateResponse("webapp_standalone.html", {"request": request})
