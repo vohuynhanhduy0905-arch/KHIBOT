@@ -40,7 +40,9 @@
         .products{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:12px}
         .product-card{background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.05);cursor:pointer;border:1px solid var(--border)}
         .product-card:active{transform:scale(.96)}
-        .prod-img{width:100%;aspect-ratio:1;object-fit:cover;background:#f5f5f5}
+        .prod-img{width:100%;aspect-ratio:1;object-fit:cover;background:#f5f5f5;background-image:linear-gradient(90deg,#f5f5f5 25%,#e8e8e8 50%,#f5f5f5 75%);background-size:200% 100%;animation:shimmer 1.5s infinite}
+        @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+        .prod-img[src*="logo"]{object-fit:contain;padding:10px}
         .prod-info{padding:8px;text-align:center}
         .prod-name{font-size:11px;font-weight:600;line-height:1.3;height:28px;overflow:hidden}
         .prod-price{font-size:12px;font-weight:700;color:var(--primary);margin-top:2px}
@@ -254,7 +256,7 @@ function initApp(){
     renderProducts();
 }
 function selectCat(id,btn){currentCat=id;document.querySelectorAll('.cat-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderProducts();}
-function renderProducts(){document.getElementById('products').innerHTML=PRODUCTS.filter(p=>p.cat===currentCat).map(p=>'<div class="product-card" onclick="openModal('+p.id+')"><img class="prod-img" src="'+p.img+'" onerror="this.style.background=\'#eee\'"><div class="prod-info"><div class="prod-name">'+p.name+'</div><div class="prod-price">'+p.price.toLocaleString()+'đ</div></div></div>').join('');}
+function renderProducts(){document.getElementById('products').innerHTML=PRODUCTS.filter(p=>p.cat===currentCat).map(p=>'<div class="product-card" onclick="openModal('+p.id+')"><img class="prod-img" src="/static/logo.png" data-src="'+p.img+'" loading="lazy"><div class="prod-info"><div class="prod-name">'+p.name+'</div><div class="prod-price">'+p.price.toLocaleString()+'đ</div></div></div>').join('');requestAnimationFrame(()=>{document.querySelectorAll('.prod-img[data-src]').forEach(img=>{const src=img.dataset.src;const n=new Image();n.onload=()=>{img.src=src;img.removeAttribute('data-src');};n.onerror=()=>{img.src='/static/logo.png';};n.src=src;});});}
 
 function openModal(id){
     const p=PRODUCTS.find(x=>x.id===id);currentItem={...p,qty:1,tops:[],notes:[],customNote:''};
