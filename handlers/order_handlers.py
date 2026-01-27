@@ -1,7 +1,7 @@
 # --- FILE: handlers/order_handlers.py ---
 # Xử lý order từ webapp
 
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from pydantic import BaseModel
 from typing import List
@@ -39,14 +39,16 @@ class OrderData(BaseModel):
 # ==========================================
 
 async def order_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Gọi menu order trong nhóm"""
-    kb = [
-        [InlineKeyboardButton("⚡ MỞ MENU ORDER ⚡", web_app=WebAppInfo(url=f"{WEB_URL}/webapp"))]
-    ]
-    await update.message.reply_text(
-        "👇 Bấm vào nút bên dưới để lên đơn nhé:", 
-        reply_markup=InlineKeyboardMarkup(kb)
+    """Hướng dẫn dùng App Order"""
+    from config import WEB_URL
+    
+    msg = (
+        "📱 <b>APP ORDER</b>\n"
+        "━━━━━━━━━━━━━━━━\n"
+        f"👉 Truy cập: {WEB_URL}/order\n\n"
+        "💡 Lưu trang này vào màn hình chính để dùng như app!"
     )
+    await update.message.reply_text(msg, parse_mode="HTML")
 
 
 # ==========================================
@@ -71,7 +73,7 @@ async def submit_order(order: OrderData, bot):
         
         staff_name = staff.get("Tên")
         
-        msg = f"🔔 <b>ĐƠN: {order.customer.upper()}</b> (từ {staff_name})\n"
+        msg = f"🔔 <b>{order.customer.upper()}</b> (từ {staff_name})\n"
         
         for item in order.items:
             extra = []
