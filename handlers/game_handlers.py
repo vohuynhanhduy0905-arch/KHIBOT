@@ -153,7 +153,7 @@ async def handle_pk_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"━━━━━━━━━━━━━━━━\n"
         f"🎲 Đang tung xúc xắc..."
     )
-    await query.edit_message_text(txt, parse_mode="HTML")
+    await query.edit_message_caption(caption=txt, parse_mode="HTML")
     
     await query.answer("✅ Đã nhận kèo! Đang tung xúc xắc...")
     
