@@ -41,6 +41,207 @@ async def game_ui_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # ==========================================
+# PK XÚC XẮC (1vs1)
+# ==========================================
+
+async def handle_pk_create(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Tạo kèo PK Xúc Xắc"""
+    query = update.callback_query
+    user = query.from_user
+    data = query.data
+    
+    amount = int(data.replace("pk_create_", ""))
+    
+    db = SessionLocal()
+    emp = db.query(Employee).filter(Employee.telegram_id == str(user.id)).first()
+    
+    if not emp or emp.coin < amount:
+        await query.answer("💸 Không đủ Xu!", show_alert=True)
+        db.close()
+        return
+    
+    emp_name = emp.name
+    db.close()
+    
+    await query.edit_message_text(f"✅ Đã gửi thách đấu <b>{amount:,.0f} Xu</b> vào nhóm!", parse_mode="HTML")
+    
+    # Gửi vào topic Game
+    msg_content = (
+        f"🥊 <b>PK XÚC XẮC 1vs1</b> 🎲\n"
+        f"━━━━━━━━━━━━━━━━\n"
+        f"👤 <b>{emp_name}</b> thách đấu!\n"
+        f"🪙 Cược: <b>{amount:,.0f} Xu</b>\n"
+        f"━━━━━━━━━━━━━━━━\n"
+        f"🎯 Ai cao điểm hơn thắng!\n"
+        f"👇 Bấm để nhận kèo:"
+    )
+    
+    kb = [[InlineKeyboardButton("🎲 NHẬN KÈO", callback_data="pk_join")]]
+    
+    try:
+        sent_msg = await context.bot.send_message(
+            chat_id=MAIN_GROUP_ID,
+            message_thread_id=GAME_TOPIC_ID,
+            text=msg_content,
+            reply_markup=InlineKeyboardMarkup(kb),
+            parse_mode="HTML"
+        )
+        
+        ACTIVE_PK_MATCHES[sent_msg.message_id] = {
+            "creator_id": str(user.id),
+            "creator_name": emp_name,
+            "amount": amount,
+            "joiner_id": None,
+            "joiner_name": None
+        }
+    except Exception as e:
+        await context.bot.send_message(user.id, f"⚠️ Lỗi: {e}")
+
+
+async def handle_pk_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Nhận kèo PK Xúc Xắc"""
+    query = update.callback_query
+    user = query.from_user
+    msg_id = query.message.message_id
+    
+    match = ACTIVE_PK_MATCHES.get(msg_id)
+    if not match:
+        await query.answer("❌ Kèo đã hết hạn!", show_alert=True)
+        return
+    
+    if match["joiner_id"]:
+        await query.answer("❌ Đã có người nhận rồi!", show_alert=True)
+        return
+    
+    if str(user.id) == match["creator_id"]:
+        await query.answer("🚫 Không thể tự chơi với mình!", show_alert=True)
+        return
+    
+    db = SessionLocal()
+    joiner = db.query(Employee).filter(Employee.telegram_id == str(user.id)).first()
+    creator = db.query(Employee).filter(Employee.telegram_id == match["creator_id"]).first()
+    
+    if not joiner or joiner.coin < match["amount"]:
+        await query.answer("💸 Không đủ Xu!", show_alert=True)
+        db.close()
+        return
+    
+    if not creator or creator.coin < match["amount"]:
+        await query.answer("⚠️ Người tạo không còn đủ Xu!", show_alert=True)
+        del ACTIVE_PK_MATCHES[msg_id]
+        db.close()
+        return
+    
+    joiner_name = joiner.name
+    match["joiner_id"] = str(user.id)
+    match["joiner_name"] = joiner_name
+    
+    # Trừ tiền cả 2
+    creator.coin -= match["amount"]
+    joiner.coin -= match["amount"]
+    db.commit()
+    db.close()
+    
+    # Cập nhật tin nhắn
+    txt = (
+        f"🥊 <b>PK XÚC XẮC</b> 🎲\n"
+        f"━━━━━━━━━━━━━━━━\n"
+        f"👤 {match['creator_name']} ⚔️ {joiner_name}\n"
+        f"🪙 Cược: <b>{match['amount']:,.0f} Xu</b>\n"
+        f"━━━━━━━━━━━━━━━━\n"
+        f"🎲 Đang tung xúc xắc..."
+    )
+    await query.edit_message_text(txt, parse_mode="HTML")
+    
+    await query.answer("✅ Đã nhận kèo! Đang tung xúc xắc...")
+    
+    # Tung xúc xắc
+    await asyncio.sleep(1)
+    
+    # Creator tung
+    dice1 = await context.bot.send_dice(
+        chat_id=MAIN_GROUP_ID,
+        message_thread_id=GAME_TOPIC_ID,
+        emoji="🎲"
+    )
+    creator_score = dice1.dice.value
+    
+    await asyncio.sleep(2)
+    
+    # Joiner tung
+    dice2 = await context.bot.send_dice(
+        chat_id=MAIN_GROUP_ID,
+        message_thread_id=GAME_TOPIC_ID,
+        emoji="🎲"
+    )
+    joiner_score = dice2.dice.value
+    
+    await asyncio.sleep(3)
+    
+    # Xác định người thắng
+    amount = match["amount"]
+    total_pot = amount * 2
+    
+    if creator_score > joiner_score:
+        winner_id = match["creator_id"]
+        winner_name = match["creator_name"]
+        loser_name = joiner_name
+        result = f"🏆 <b>{match['creator_name']}</b> THẮNG!"
+    elif joiner_score > creator_score:
+        winner_id = match["joiner_id"]
+        winner_name = joiner_name
+        loser_name = match["creator_name"]
+        result = f"🏆 <b>{joiner_name}</b> THẮNG!"
+    else:
+        winner_id = None
+        result = "🤝 HÒA! Hoàn tiền cả 2!"
+    
+    # Cộng tiền
+    db = SessionLocal()
+    if winner_id:
+        winner = db.query(Employee).filter(Employee.telegram_id == winner_id).first()
+        winner.coin += total_pot
+    else:
+        # Hoàn tiền
+        c = db.query(Employee).filter(Employee.telegram_id == match["creator_id"]).first()
+        j = db.query(Employee).filter(Employee.telegram_id == match["joiner_id"]).first()
+        c.coin += amount
+        j.coin += amount
+    db.commit()
+    db.close()
+    
+    # Gửi kết quả
+    final_msg = (
+        f"🥊 <b>KẾT QUẢ PK XÚC XẮC</b> 🎲\n"
+        f"━━━━━━━━━━━━━━━━\n"
+        f"👤 {match['creator_name']}: 🎲 <b>{creator_score}</b>\n"
+        f"👤 {joiner_name}: 🎲 <b>{joiner_score}</b>\n"
+        f"━━━━━━━━━━━━━━━━\n"
+        f"{result}\n"
+        f"🪙 Thưởng: {total_pot:,.0f} Xu"
+    )
+    
+    await context.bot.send_message(
+        chat_id=MAIN_GROUP_ID,
+        message_thread_id=GAME_TOPIC_ID,
+        text=final_msg,
+        parse_mode="HTML"
+    )
+    
+    # Thông báo riêng
+    if winner_id:
+        await context.bot.send_message(winner_id, f"🎉 Bạn THẮNG PK! +{total_pot:,.0f} Xu")
+        loser_id = match["joiner_id"] if winner_id == match["creator_id"] else match["creator_id"]
+        await context.bot.send_message(loser_id, f"😢 Bạn THUA PK! -{amount:,.0f} Xu")
+    else:
+        await context.bot.send_message(match["creator_id"], f"🤝 HÒA! Hoàn lại {amount:,.0f} Xu")
+        await context.bot.send_message(match["joiner_id"], f"🤝 HÒA! Hoàn lại {amount:,.0f} Xu")
+    
+    # Xóa trận đấu
+    del ACTIVE_PK_MATCHES[msg_id]
+
+
+# ==========================================
 # SLOT MACHINE
 # ==========================================
 

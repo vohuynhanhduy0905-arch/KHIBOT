@@ -36,6 +36,7 @@ from handlers import (
     game_ui_command, slot_command, kbb_command,
     handle_slot_menu, handle_slot_play,
     handle_kbb_create, handle_kbb_join, handle_kbb_choose,
+    handle_pk_create, handle_pk_join,
     order_command, submit_order, order_button_callback, OrderData
 )
 
@@ -238,6 +239,8 @@ bot_app.add_handler(CommandHandler("thong_bao", broadcast_command))
 bot_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_message))
 bot_app.add_handler(CallbackQueryHandler(order_button_callback, pattern="^(cancel_order_|pos_done)"))
 bot_app.add_handler(CallbackQueryHandler(handle_slot_play, pattern="^slot_play_"))
+bot_app.add_handler(CallbackQueryHandler(handle_pk_create, pattern="^pk_create_"))
+bot_app.add_handler(CallbackQueryHandler(handle_pk_join, pattern="^pk_join$"))
 bot_app.add_handler(CallbackQueryHandler(handle_kbb_create, pattern="^kbb_create_"))
 bot_app.add_handler(CallbackQueryHandler(handle_kbb_join, pattern="^kbb_join$"))
 bot_app.add_handler(CallbackQueryHandler(handle_kbb_choose, pattern="^kbb_choose_"))
