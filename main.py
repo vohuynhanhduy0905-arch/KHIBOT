@@ -17,7 +17,7 @@ from telegram import (
 )
 from telegram.ext import (
     Application, CommandHandler, MessageHandler, filters, 
-    ContextTypes, CallbackQueryHandler
+    ContextTypes, CallbackQueryHandler, MessageReactionHandler
 )
 from sqlalchemy.sql import func
 
@@ -43,7 +43,91 @@ from handlers import (
 init_db()
 templates = Jinja2Templates(directory="templates")
 bot_app = Application.builder().token(TOKEN).build()
+
+# Lưu tin nhắn thông báo: {message_id: set(user_ids đã nhận Xu)}
 DAILY_ANNOUNCEMENT_MSG = {}
+
+# Reward cho reaction
+REACTION_REWARD = 10000
+
+
+# ==========================================
+# XỬ LÝ REACTION (THẢ TIM NHẬN XU)
+# ==========================================
+
+async def handle_reaction(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Xử lý khi có người thả reaction vào tin nhắn"""
+    try:
+        reaction = update.message_reaction
+        
+        if not reaction:
+            return
+        
+        message_id = reaction.message_id
+        user = reaction.user
+        chat_id = reaction.chat.id
+        
+        # Chỉ xử lý trong group chính
+        if chat_id != MAIN_GROUP_ID:
+            return
+        
+        # Kiểm tra tin nhắn có phải thông báo không
+        if message_id not in DAILY_ANNOUNCEMENT_MSG:
+            return
+        
+        user_id = user.id
+        
+        # Kiểm tra user đã nhận Xu cho tin nhắn này chưa
+        if user_id in DAILY_ANNOUNCEMENT_MSG[message_id]:
+            return
+        
+        # Kiểm tra có phải reaction ❤️ không
+        new_reactions = reaction.new_reaction
+        has_heart = False
+        
+        for r in new_reactions:
+            # ReactionTypeEmoji có attribute emoji
+            if hasattr(r, 'emoji') and r.emoji == "❤":
+                has_heart = True
+                break
+        
+        if not has_heart:
+            return
+        
+        # Cộng Xu cho user
+        db = SessionLocal()
+        emp = db.query(Employee).filter(Employee.telegram_id == str(user_id)).first()
+        
+        if emp:
+            emp.coin += REACTION_REWARD
+            db.commit()
+            
+            # Đánh dấu đã nhận
+            DAILY_ANNOUNCEMENT_MSG[message_id].add(user_id)
+            
+            # Gửi thông báo riêng
+            try:
+                await context.bot.send_message(
+                    chat_id=user_id,
+                    text=(
+                        f"❤️ <b>CẢM ƠN BẠN ĐÃ THẢ TIM!</b>\n"
+                        f"━━━━━━━━━━━━━━━━\n"
+                        f"🎁 +{REACTION_REWARD:,.0f} Xu\n"
+                        f"🪙 Xu hiện có: <b>{emp.coin:,.0f}</b>\n"
+                        f"━━━━━━━━━━━━━━━━\n"
+                        f"💪 Chúc bạn ngày làm việc vui vẻ!"
+                    ),
+                    parse_mode="HTML"
+                )
+            except:
+                pass  # User có thể đã block bot
+            
+            print(f"❤️ {emp.name} thả tim → +{REACTION_REWARD:,} Xu")
+        
+        db.close()
+        
+    except Exception as e:
+        print(f"❌ Lỗi xử lý reaction: {e}")
 
 async def handle_game_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -174,7 +258,13 @@ async def handle_game_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
         db.close()
 
 async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    from config import ADMIN_ID
+    from telegram import ReplyKeyboardRemove
+    
     text = update.message.text
+    user_id = str(update.effective_user.id)
+    
+    # Menu nhân viên
     if text == "💳 Ví & Thẻ":
         await me_command(update, context)
     elif text == "📅 Điểm Danh":
@@ -187,6 +277,60 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         await top_command(update, context)
     elif text == "🚀 Lấy mã QR":
         await qr_command(update, context)
+    
+    # Menu Admin (chỉ admin)
+    elif user_id == ADMIN_ID:
+        admin_buttons = ["📋 Danh Sách NV", "📢 Gửi Thông Báo", "🔄 Reset Toàn Bộ", "❌ Thoát Admin", "📝 Xem Kho Review", "🗑 Xóa Hết Review"]
+        
+        if text in admin_buttons:
+            db = SessionLocal()
+            
+            if text == "📋 Danh Sách NV":
+                emps = db.query(Employee).all()
+                if not emps:
+                    msg = "Chưa có nhân viên nào."
+                else:
+                    msg = "📋 <b>QUẢN LÝ NHÂN VIÊN</b>\n"
+                    for e in emps:
+                        msg += (
+                            f"➖➖➖➖➖➖➖➖\n"
+                            f"👤 <b>{e.name}</b> ({e.emoji})\n"
+                            f"💰 Lương: {e.balance:,.0f}đ | 🪙 Xu: {e.coin:,.0f}\n"
+                            f"👉 Lương: /tip_{e.telegram_id} | /fine_{e.telegram_id}\n"
+                            f"👉 Xu: /tipxu_{e.telegram_id} | /finex_{e.telegram_id}\n"
+                            f"🗑 Xóa: /del_{e.telegram_id}\n"
+                        )
+                if len(msg) > 4000:
+                    msg = msg[:4000] + "\n...(Danh sách quá dài)"
+                await update.message.reply_text(msg, parse_mode="HTML")
+            
+            elif text == "📝 Xem Kho Review":
+                reviews = db.query(Review).all()
+                msg = "📝 <b>KHO REVIEW:</b>\n" + "\n".join([f"- {r.content}" for r in reviews]) if reviews else "📭 Kho review trống."
+                if len(msg) > 4000:
+                    msg = msg[:4000] + "..."
+                await update.message.reply_text(msg, parse_mode="HTML")
+            
+            elif text == "🗑 Xóa Hết Review":
+                db.query(Review).delete()
+                db.commit()
+                await update.message.reply_text("🗑 Đã xóa sạch kho review.")
+            
+            elif text == "🔄 Reset Toàn Bộ":
+                db.query(Employee).update({Employee.balance: 0})
+                db.commit()
+                await update.message.reply_text("✅ Đã reset ví lương về 0 cho tất cả.")
+            
+            elif text == "📢 Gửi Thông Báo":
+                await update.message.reply_text("⚠️ Gõ: `/thong_bao Nội dung`", parse_mode="Markdown")
+            
+            elif text == "❌ Thoát Admin":
+                await update.message.reply_text("🔒 Đã thoát Admin.", reply_markup=ReplyKeyboardRemove())
+            
+            db.close()
+        else:
+            # Nếu admin gõ text khác -> thêm review
+            await handle_add_review(update, context)
 
 async def run_announcement_scheduler():
     import pytz
@@ -209,10 +353,17 @@ async def run_announcement_scheduler():
         await asyncio.sleep(wait_seconds)
         messages = MORNING_MESSAGES if is_morning else EVENING_MESSAGES
         text = random.choice(messages)
+        
+        # Thêm hướng dẫn thả tim
+        text += f"\n\n❤️ <b>Thả tim để nhận {REACTION_REWARD:,.0f} Xu!</b>"
+        
         try:
             sent_msg = await bot_app.bot.send_message(chat_id=MAIN_GROUP_ID, message_thread_id=CHAT_TOPIC_ID, text=text, parse_mode="HTML")
+            
+            # Lưu message_id để track reaction
             DAILY_ANNOUNCEMENT_MSG[sent_msg.message_id] = set()
-            print(f"✅ Đã gửi thông báo {'sáng' if is_morning else 'chiều'}")
+            
+            print(f"✅ Đã gửi thông báo {'sáng' if is_morning else 'chiều'} (msg_id: {sent_msg.message_id})")
         except Exception as e:
             print(f"❌ Lỗi gửi thông báo: {e}")
         await asyncio.sleep(60)
@@ -236,6 +387,121 @@ bot_app.add_handler(CommandHandler("dangky", dangky_command))
 bot_app.add_handler(CommandHandler("dsnv", dsnv_command))
 bot_app.add_handler(CommandHandler("xoanv", xoanv_command))
 bot_app.add_handler(CommandHandler("thong_bao", broadcast_command))
+
+# ==========================================
+# ADMIN SYSTEM
+# ==========================================
+
+async def admin_dashboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Menu Admin với keyboard"""
+    from config import ADMIN_ID
+    from telegram import ReplyKeyboardMarkup
+    
+    if str(update.effective_user.id) != ADMIN_ID:
+        return
+    
+    keyboard = [
+        ["📋 Danh Sách NV", "📢 Gửi Thông Báo"],
+        ["📝 Xem Kho Review", "🗑 Xóa Hết Review"],
+        ["🔄 Reset Toàn Bộ", "❌ Thoát Admin"]
+    ]
+    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+    await update.message.reply_text("🔓 <b>MENU ADMIN</b>", reply_markup=reply_markup, parse_mode="HTML")
+
+async def handle_add_review(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Thêm review vào kho"""
+    from config import ADMIN_ID
+    if str(update.effective_user.id) != ADMIN_ID:
+        return
+    
+    text = update.message.text
+    if not text:
+        return
+    
+    lines = [line.strip() for line in text.split('\n') if line.strip()]
+    db = SessionLocal()
+    count = 0
+    try:
+        for content in lines:
+            db.add(Review(content=content))
+            count += 1
+        db.commit()
+        await update.message.reply_text(f"✅ Đã thêm {count} câu review.")
+    except:
+        pass
+    db.close()
+
+async def quick_action_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Xử lý các lệnh nhanh: /tip_, /fine_, /tipxu_, /finex_, /del_"""
+    from config import ADMIN_ID
+    if str(update.effective_user.id) != ADMIN_ID:
+        return
+    
+    command = update.message.text
+    try:
+        action_part, target_id = command[1:].split('_', 1)
+    except:
+        return
+    
+    db = SessionLocal()
+    emp = db.query(Employee).filter(Employee.telegram_id == target_id).first()
+    
+    if emp:
+        if action_part == "tip":
+            emp.balance += 5000
+            db.commit()
+            await update.message.reply_text(f"✅ Thưởng nóng 5k lương cho {emp.name}.")
+        elif action_part == "fine":
+            emp.balance -= 5000
+            db.commit()
+            await update.message.reply_text(f"🚫 Phạt 5k lương của {emp.name}.")
+        elif action_part == "tipxu":
+            emp.coin += 50000
+            db.commit()
+            await update.message.reply_text(f"✅ Buff 50k Xu cho {emp.name}.")
+        elif action_part == "finex":
+            emp.coin -= 50000
+            db.commit()
+            await update.message.reply_text(f"🚫 Tịch thu 50k Xu của {emp.name}.")
+        elif action_part == "del":
+            name = emp.name
+            db.delete(emp)
+            db.commit()
+            await update.message.reply_text(f"🗑 Đã xóa nhân viên {name}.")
+    
+    db.close()
+
+bot_app.add_handler(CommandHandler("admin", admin_dashboard))
+bot_app.add_handler(MessageHandler(filters.Regex(r'^/(tip|fine|tipxu|finex|del)_\d+$'), quick_action_handler))
+
+# Lệnh test gửi thông báo (chỉ admin)
+async def test_announcement(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Admin test gửi thông báo để test reaction"""
+    from config import ADMIN_ID
+    if str(update.effective_user.id) != ADMIN_ID:
+        return
+    
+    text = (
+        "🧪 <b>TEST THÔNG BÁO</b>\n"
+        "━━━━━━━━━━━━━━━━\n"
+        "Đây là tin nhắn test tính năng thả tim!\n"
+        f"\n❤️ <b>Thả tim để nhận {REACTION_REWARD:,.0f} Xu!</b>"
+    )
+    
+    try:
+        sent_msg = await context.bot.send_message(
+            chat_id=MAIN_GROUP_ID, 
+            message_thread_id=CHAT_TOPIC_ID, 
+            text=text, 
+            parse_mode="HTML"
+        )
+        DAILY_ANNOUNCEMENT_MSG[sent_msg.message_id] = set()
+        await update.message.reply_text(f"✅ Đã gửi test! Message ID: {sent_msg.message_id}")
+    except Exception as e:
+        await update.message.reply_text(f"❌ Lỗi: {e}")
+
+bot_app.add_handler(CommandHandler("test_thongbao", test_announcement))
+
 bot_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_message))
 bot_app.add_handler(CallbackQueryHandler(order_button_callback, pattern="^(cancel_order_|pos_done)"))
 bot_app.add_handler(CallbackQueryHandler(handle_slot_play, pattern="^slot_play_"))
@@ -245,6 +511,9 @@ bot_app.add_handler(CallbackQueryHandler(handle_kbb_create, pattern="^kbb_create
 bot_app.add_handler(CallbackQueryHandler(handle_kbb_join, pattern="^kbb_join$"))
 bot_app.add_handler(CallbackQueryHandler(handle_kbb_choose, pattern="^kbb_choose_"))
 bot_app.add_handler(CallbackQueryHandler(handle_game_buttons))
+
+# Handler cho reaction (thả tim nhận Xu)
+bot_app.add_handler(MessageReactionHandler(handle_reaction))
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
