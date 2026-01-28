@@ -28,7 +28,7 @@ from config import (
     TX_WIN_RATE, TX_MAX_PLAYS_PER_DAY, TX_MAX_BET_PER_DAY  # MỚI
 )
 from database import init_db, SessionLocal, Employee, Review, ShopLog
-from staff_sheet import get_staff_by_pin
+from staff_sheet import get_staff_by_pin, get_all_staff
 
 from handlers import (
     start_command, me_command, qr_command, top_command,
@@ -43,6 +43,34 @@ from handlers import (
 )
 
 init_db()
+# === ĐỒNG BỘ EMOJI TỪ SHEET KHI KHỞI ĐỘNG ===
+def sync_emoji_from_sheet():
+    """Đồng bộ emoji từ Google Sheet về Database 1 lần khi khởi động"""
+    try:
+        print("🔄 Đang đồng bộ emoji từ Google Sheet...")
+        sheet_data = get_all_staff()
+        
+        db = SessionLocal()
+        updated = 0
+        
+        for staff in sheet_data:
+            tg_id = str(staff.get("Telegram_ID", "")).strip()
+            sheet_emoji = str(staff.get("Emoji", "")).strip()
+            
+            if tg_id and sheet_emoji:
+                emp = db.query(Employee).filter(Employee.telegram_id == tg_id).first()
+                if emp and emp.emoji != sheet_emoji:
+                    emp.emoji = sheet_emoji
+                    updated += 1
+        
+        db.commit()
+        db.close()
+        print(f"✅ Đồng bộ emoji hoàn tất! Cập nhật {updated} nhân viên.")
+    except Exception as e:
+        print(f"⚠️ Lỗi đồng bộ emoji: {e}")
+
+# Chạy đồng bộ khi khởi động
+sync_emoji_from_sheet()
 templates = Jinja2Templates(directory="templates")
 bot_app = Application.builder().token(TOKEN).build()
 
