@@ -19,7 +19,7 @@ from config import (
     DAILY_CHECKIN_REWARD, STREAK_7_BONUS
 )
 from database import SessionLocal, Employee, ShopLog
-from staff_sheet import get_staff_by_telegram, get_staff_emoji, register_staff, update_staff_emoji
+from staff_sheet import get_staff_by_telegram, register_staff, update_staff_emoji
 from utils import (
     get_rank_info, get_random_gift, create_card_image, 
     generate_streak_display, SPAM_TRACKER
@@ -107,7 +107,7 @@ async def check_private(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ==========================================
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Xử lý lệnh /start - ĐỒNG BỘ EMOJI VỚI GOOGLE SHEET"""
+    """Xử lý lệnh /start - CHỈ ĐỌC TỪ DATABASE"""
     if not await check_private(update, context): 
         return
     
@@ -117,56 +117,26 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         emp = db.query(Employee).filter(Employee.telegram_id == str(user.id)).first()
         
-        # Lấy emoji từ Google Sheet (nguồn chính - không mất khi deploy)
-        sheet_emoji = None
-        try:
-            sheet_emoji = get_staff_emoji(str(user.id))
-        except Exception as e:
-            print(f"Lỗi đọc Sheet: {e}")
-        
         if not emp:
             # Chưa có trong DB → Tạo mới
-            if sheet_emoji:
-                # Có emoji trong Sheet → dùng emoji đó
-                emoji = sheet_emoji
-            else:
-                # Chưa có → tạo emoji mới
-                used_emojis = [e.emoji for e in db.query(Employee).all() if e.emoji]
-                available = [e for e in EMOJI_POOL if e not in used_emojis]
-                if not available:
-                    available = EMOJI_POOL
-                emoji = random.choice(available)
-                
-                # Lưu emoji vào Sheet
-                try:
-                    register_staff(user.full_name, "", str(user.id))
-                except Exception as e:
-                    print(f"Lỗi ghi Sheet: {e}")
+            used_emojis = [e.emoji for e in db.query(Employee).all() if e.emoji]
+            available = [e for e in EMOJI_POOL if e not in used_emojis]
+            if not available:
+                available = EMOJI_POOL
+            emoji = random.choice(available)
             
             emp = Employee(telegram_id=str(user.id), name=user.full_name, emoji=emoji)
             db.add(emp)
             db.commit()
-        else:
-            # Đã có trong DB → Đồng bộ emoji
-            if sheet_emoji:
-                # Sheet có emoji → cập nhật DB theo Sheet (ưu tiên Sheet)
-                if emp.emoji != sheet_emoji:
-                    emp.emoji = sheet_emoji
-                    db.commit()
-            else:
-                # Sheet chưa có emoji → ghi emoji từ DB lên Sheet
-                try:
-                    register_staff(emp.name, "", str(user.id))
-                    if emp.emoji:
-                        update_staff_emoji(str(user.id), emp.emoji)
-                except Exception as e:
-                    print(f"Lỗi đồng bộ Sheet: {e}")
-        
-        # Lấy emoji cuối cùng (ưu tiên Sheet)
-        final_emoji = sheet_emoji if sheet_emoji else emp.emoji
+            
+            # Lưu emoji lên Sheet để backup
+            try:
+                register_staff(user.full_name, "", str(user.id))
+            except Exception as e:
+                print(f"Lỗi ghi Sheet: {e}")
         
         msg = (
-            f"Chào <b>{emp.name}</b> {final_emoji}!\n"
+            f"Chào <b>{emp.name}</b> {emp.emoji}!\n"
             f"Chúc một ngày làm việc năng suất.\n"
             f"👇 <i>Chọn menu bên dưới:</i>"
         )
@@ -177,7 +147,6 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Có lỗi xảy ra! Vui lòng thử lại.")
     finally:
         db.close()
-
 
 # ==========================================
 # /me - Xem thẻ nhân viên (FORMAT ĐẸP)
@@ -200,8 +169,8 @@ async def me_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except:
             pass
         
-        # Dùng emoji từ Sheet nếu có, không thì dùng từ DB
-        display_emoji = sheet_emoji if sheet_emoji else emp.emoji
+        # Lấy emoji từ Database (đã đồng bộ khi khởi động)
+        display_emoji = emp.emoji
         
         wait_msg = await update.message.reply_text("📸 Đợi cái ní, đang lấy avt để in thẻ...")
         
