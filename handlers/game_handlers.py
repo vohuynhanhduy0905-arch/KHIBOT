@@ -345,8 +345,8 @@ async def handle_slot_play(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Tính kết quả
     winnings = 0
     if slot_value == 64:
-        winnings = amount * 30
-        note = "🎉🎉🎉 <b>JACKPOT 777!</b> x30"
+        winnings = amount * 20
+        note = "🎉🎉🎉 <b>JACKPOT 777!</b> x20"
     elif slot_value == 43:
         winnings = amount * 10
         note = "🎊 <b>TRÙNG 3!</b> x10"
