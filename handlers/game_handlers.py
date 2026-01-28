@@ -345,14 +345,14 @@ async def handle_slot_play(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Tính kết quả
     winnings = 0
     if slot_value == 64:
-        winnings = amount * 50
-        note = "🎉🎉🎉 <b>JACKPOT 777!</b> x50"
+        winnings = amount * 30
+        note = "🎉🎉🎉 <b>JACKPOT 777!</b> x30"
     elif slot_value == 43:
-        winnings = amount * 20
-        note = "🎊 <b>TRÙNG 3!</b> x20"
-    elif slot_value in [1, 22]:
         winnings = amount * 10
-        note = "✨ <b>TRÙNG 3!</b> x10"
+        note = "🎊 <b>TRÙNG 3!</b> x10"
+    elif slot_value in [1, 22]:
+        winnings = amount * 5
+        note = "✨ <b>TRÙNG 3!</b> x5"
     elif slot_value in [2, 3, 4, 6, 11, 16, 17, 21, 32, 33, 38, 41, 42, 48, 49, 54, 59, 61, 62, 63]:
         winnings = int(amount * 1.5)
         note = "👍 Trùng 2! x1.5"
@@ -364,6 +364,7 @@ async def handle_slot_play(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if winnings > 0:
         emp.coin += winnings
     db.commit()
+    winnings = int(winnings * 0.9)  # Cắt 10% thưởng
     final_coin = emp.coin
     db.close()
     
