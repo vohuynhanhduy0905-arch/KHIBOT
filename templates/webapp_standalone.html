@@ -9,7 +9,7 @@
     <link rel="apple-touch-icon" href="/static/logo.png">
     <style>
         *{box-sizing:border-box;margin:0;padding:0}
-        :root{--primary:#1A5336;--primary-light:#2d7a4a;--accent:#C9A86C;--bg:#FDF8F3;--text:#333;--text-light:#666;--border:#e8e0d8;--danger:#e74c3c}
+        :root{--primary:#1A5336;--primary-light:#2d7a4a;--accent:#C9A86C;--bg:#FDF8F3;--text:#333;--text-light:#666;--border:#e8e0d8;--danger:#e74c3c;--success:#27ae60}
         body{background:var(--bg);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:var(--text);min-height:100vh}
         .login-screen{position:fixed;inset:0;background:linear-gradient(135deg,var(--primary),var(--primary-light));display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px}
         .login-screen.hidden{display:none}
@@ -97,6 +97,9 @@
         .chip.active{background:var(--primary);color:#fff;border-color:var(--primary)}
         .chip.exclude{border-color:var(--danger);color:var(--danger)}
         .chip.exclude.active{background:var(--danger);color:#fff;border-color:var(--danger)}
+        .chip.compensate{border-color:var(--success);color:var(--success)}
+        .chip.compensate.active{background:var(--success);color:#fff;border-color:var(--success)}
+        .chip.disabled{opacity:0.4;cursor:not-allowed;pointer-events:none}
         .chip-note.active{background:#555;border-color:#555}
         .custom-note{width:100%;padding:12px 14px;border:2px solid var(--border);border-radius:12px;font-size:14px;margin-top:10px;outline:none;resize:none;font-family:inherit}
         .custom-note:focus{border-color:var(--primary)}
@@ -126,6 +129,11 @@
         .loading{display:inline-block;width:16px;height:16px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:spin .8s linear infinite;margin-right:8px;vertical-align:middle}
         @keyframes spin{to{transform:rotate(360deg)}}
         .logout-btn{position:fixed;bottom:100px;right:15px;background:#fff;border:1px solid var(--border);padding:8px 12px;border-radius:20px;font-size:12px;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.1);z-index:50}
+        .compensate-section{margin-top:15px;padding:12px;background:linear-gradient(135deg,#e8f5e9,#f1f8e9);border-radius:12px;border:2px solid var(--success)}
+        .compensate-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+        .compensate-label{font-size:12px;font-weight:700;color:var(--success);text-transform:uppercase}
+        .compensate-count{font-size:11px;color:var(--success);font-weight:600}
+        .compensate-chips{display:flex;flex-wrap:wrap;gap:8px}
     </style>
 </head>
 <body>
@@ -185,6 +193,13 @@
                     <div class="toggle-wrap"><span class="toggle-label">Loại bỏ</span><div class="toggle" id="excludeToggle" onclick="toggleExcludeMode()"></div></div>
                 </div>
                 <div class="chips" id="toppingChips"></div>
+                <div class="compensate-section" id="compensateSection" style="display:none">
+                    <div class="compensate-header">
+                        <div class="compensate-label">✅ Bù Topping</div>
+                        <div class="compensate-count" id="compensateCount">Đã chọn 0/0</div>
+                    </div>
+                    <div class="compensate-chips" id="compensateChips"></div>
+                </div>
             </div>
             <div class="modal-footer"><button class="add-btn" onclick="addToCart()">THÊM VÀO ĐƠN · <span id="modalTotal">25,000đ</span></button></div>
         </div>
@@ -235,7 +250,6 @@ const PRODUCTS = [
     {id:31,cat:'dacbiet',name:'Sữa Tươi Trân Châu Đ.Đ',price:27000,img:'/static/menu/db-suatuoi.jpg'},
     {id:32,cat:'dacbiet',name:'Hồng Trà Latte',price:27000,img:'/static/menu/db-hongtralatte.jpg'},
     {id:33,cat:'dacbiet',name:'Matcha Latte',price:27000,img:'/static/menu/db-matchalatte.jpg'},
-    // TOPPING THÊM - 5K
     {id:100,cat:'topping',name:'Thêm Trân Châu',price:5000,img:'/static/menu/tp-tranchau.jpg'},
     {id:101,cat:'topping',name:'Thêm Củ Năng',price:5000,img:'/static/menu/tp-cunang.jpg'},
     {id:102,cat:'topping',name:'Thêm Phô Mai',price:5000,img:'/static/menu/tp-phomai.jpg'},
@@ -246,7 +260,6 @@ const PRODUCTS = [
     {id:107,cat:'topping',name:'Thêm Flan Trứng',price:5000,img:'/static/menu/tp-flan.jpg'},
     {id:108,cat:'topping',name:'Thêm Ngọc Trai',price:5000,img:'/static/menu/tp-ngoctrai.jpg'},
     {id:109,cat:'topping',name:'Thêm Khoai Dẻo',price:5000,img:'/static/menu/tp-khoaidao.jpg'},
-    // TOPPING THÊM - 10K (Trái cây)
     {id:110,cat:'topping',name:'Thêm Đác Thơm',price:10000,img:'/static/menu/tp-dacthom.jpg'},
     {id:111,cat:'topping',name:'Thêm Đác Dâu Tằm',price:10000,img:'/static/menu/tp-dacdautam.jpg'},
     {id:112,cat:'topping',name:'Thêm Trái Cây Nhiệt Đới',price:10000,img:'/static/menu/tp-nhietdoi.jpg'},
@@ -255,90 +268,487 @@ const PRODUCTS = [
     {id:115,cat:'topping',name:'Thêm Ổi Hồng',price:10000,img:'/static/menu/tp-oihong.jpg'},
     {id:116,cat:'topping',name:'Thêm Mãng Cầu',price:10000,img:'/static/menu/tp-mangcau.jpg'}
 ];
-let cart=[],currentItem=null,currentCat='trasua',excludeMode=false,searchQuery='',staffInfo=null;
-const orderId=Math.floor(Math.random()*900)+100;
-document.getElementById('orderNum').textContent='Đơn #'+orderId;
 
-async function login(){
-    const pin=document.getElementById('pinInput').value;
-    if(pin.length!==4){document.getElementById('loginError').textContent='Vui lòng nhập 4 số';return;}
-    try{
-        const res=await fetch('/api/verify_pin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin})});
-        const data=await res.json();
-        if(data.success){staffInfo=data.staff;localStorage.setItem('khi_pin',pin);showApp();}
-        else{document.getElementById('loginError').textContent=data.message;document.getElementById('pinInput').classList.add('error');setTimeout(()=>document.getElementById('pinInput').classList.remove('error'),300);}
-    }catch(e){document.getElementById('loginError').textContent='Lỗi kết nối!';}
+let cart = [];
+let currentItem = null;
+let currentCat = 'trasua';
+let excludeMode = false;
+let searchQuery = '';
+let staffInfo = null;
+let currentToppings = [];
+let excludedToppings = [];
+let compensateToppings = [];
+let selectedToppings = [];
+
+const orderId = Math.floor(Math.random() * 900) + 100;
+document.getElementById('orderNum').textContent = 'Đơn #' + orderId;
+
+async function login() {
+    const pin = document.getElementById('pinInput').value;
+    if (pin.length !== 4) {
+        document.getElementById('loginError').textContent = 'Vui lòng nhập 4 số';
+        return;
+    }
+    try {
+        const res = await fetch('/api/verify_pin', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pin })
+        });
+        const data = await res.json();
+        if (data.success) {
+            staffInfo = data.staff;
+            localStorage.setItem('khi_pin', pin);
+            showApp();
+        } else {
+            document.getElementById('loginError').textContent = data.message;
+            document.getElementById('pinInput').classList.add('error');
+            setTimeout(() => document.getElementById('pinInput').classList.remove('error'), 300);
+        }
+    } catch (e) {
+        document.getElementById('loginError').textContent = 'Lỗi kết nối!';
+    }
 }
-function logout(){localStorage.removeItem('khi_pin');staffInfo=null;document.getElementById('loginScreen').classList.remove('hidden');document.getElementById('appContainer').classList.remove('active');document.getElementById('pinInput').value='';document.getElementById('loginError').textContent='';}
-function showApp(){document.getElementById('loginScreen').classList.add('hidden');document.getElementById('appContainer').classList.add('active');document.getElementById('staffDisplay').textContent=staffInfo.name;initApp();}
-async function checkAuth(){
-    const pin=localStorage.getItem('khi_pin');
-    if(pin){try{const res=await fetch('/api/verify_pin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin})});const data=await res.json();if(data.success){staffInfo=data.staff;showApp();return;}}catch(e){}}
+
+function logout() {
+    localStorage.removeItem('khi_pin');
+    staffInfo = null;
+    document.getElementById('loginScreen').classList.remove('hidden');
+    document.getElementById('appContainer').classList.remove('active');
+    document.getElementById('pinInput').value = '';
+    document.getElementById('loginError').textContent = '';
 }
-function initApp(){
-    document.getElementById('categories').innerHTML=CATEGORIES.map((c,i)=>`<button class="cat-btn${i===0?' active':''}" onclick="selectCat('${c.id}',this)">${c.name}</button>`).join('');
+
+function showApp() {
+    document.getElementById('loginScreen').classList.add('hidden');
+    document.getElementById('appContainer').classList.add('active');
+    document.getElementById('staffDisplay').textContent = staffInfo.name;
+    initApp();
+}
+
+async function checkAuth() {
+    const pin = localStorage.getItem('khi_pin');
+    if (pin) {
+        try {
+            const res = await fetch('/api/verify_pin', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pin })
+            });
+            const data = await res.json();
+            if (data.success) {
+                staffInfo = data.staff;
+                showApp();
+                return;
+            }
+        } catch (e) {}
+    }
+}
+
+function initApp() {
+    document.getElementById('categories').innerHTML = CATEGORIES.map((c, i) =>
+        `<button class="cat-btn${i === 0 ? ' active' : ''}" onclick="selectCat('${c.id}',this)">${c.name}</button>`
+    ).join('');
     renderProducts();
 }
-const searchInput=document.getElementById('searchInput'),searchClear=document.getElementById('searchClear');
-searchInput.addEventListener('input',e=>{searchQuery=e.target.value.toLowerCase().trim();searchClear.classList.toggle('show',searchQuery.length>0);renderProducts();});
-function clearSearch(){searchInput.value='';searchQuery='';searchClear.classList.remove('show');renderProducts();}
-function selectCat(id,btn){currentCat=id;document.querySelectorAll('.cat-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');clearSearch();renderProducts();}
-function renderProducts(){
-    let filtered=PRODUCTS.filter(p=>p.cat===currentCat);
-    if(searchQuery)filtered=PRODUCTS.filter(p=>p.name.toLowerCase().includes(searchQuery));
-    if(!filtered.length){document.getElementById('products').innerHTML='<div class="no-results">Không tìm thấy</div>';return;}
-    document.getElementById('products').innerHTML=filtered.map(p=>`<div class="product-card" onclick="openModal(${p.id})"><img class="prod-img" src="/static/logo.png" data-src="${p.img}" loading="lazy"><div class="prod-info"><div class="prod-name">${p.name}</div><div class="prod-price">${p.price.toLocaleString()}đ</div></div></div>`).join('');
-    requestAnimationFrame(()=>{document.querySelectorAll('.prod-img[data-src]').forEach(img=>{const src=img.dataset.src;const n=new Image();n.onload=()=>{img.src=src;img.classList.add('loaded');};n.onerror=()=>{img.src='/static/logo.png';img.classList.add('loaded');};n.src=src;});});
+
+const searchInput = document.getElementById('searchInput');
+const searchClear = document.getElementById('searchClear');
+searchInput.addEventListener('input', e => {
+    searchQuery = e.target.value.toLowerCase().trim();
+    searchClear.classList.toggle('show', searchQuery.length > 0);
+    renderProducts();
+});
+
+function clearSearch() {
+    searchInput.value = '';
+    searchQuery = '';
+    searchClear.classList.remove('show');
+    renderProducts();
 }
-function openModal(id){
-    const p=PRODUCTS.find(x=>x.id===id);currentItem={...p,qty:1,tops:[],notes:[],customNote:''};
-    document.getElementById('modalImg').src=p.img;document.getElementById('modalImg').onerror=function(){this.src='/static/logo.png';};
-    document.getElementById('modalName').textContent=p.name;document.getElementById('modalPrice').textContent=p.price.toLocaleString()+'đ';
-    document.getElementById('modalQty').textContent=1;document.getElementById('customNote').value='';
-    document.getElementById('noteChips').innerHTML=NOTES.map(n=>`<div class="chip chip-note" onclick="toggleNote(this,'${n}')">${n}</div>`).join('');
-    let toppings=[],label=document.getElementById('toppingLabel');
-    if(p.cat==='traicay'){toppings=TOPPINGS_FRUIT;label.style.display='flex';}
-    else if(p.cat==='topping'){label.style.display='none';document.getElementById('toppingChips').innerHTML='';}
-    else{toppings=TOPPINGS_BASIC;label.style.display='flex';}
-    excludeMode=false;document.getElementById('excludeToggle').classList.remove('active');
-    if(toppings.length)document.getElementById('toppingChips').innerHTML=toppings.map(t=>`<div class="chip" onclick="toggleTopping(this,'${t}')">${t}</div>`).join('');
-    updateModalTotal();document.getElementById('modalOverlay').classList.add('show');
+
+function selectCat(id, btn) {
+    currentCat = id;
+    document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    clearSearch();
+    renderProducts();
 }
-function closeModal(e){if(!e||e.target.id==='modalOverlay'||e.target.classList.contains('modal-close'))document.getElementById('modalOverlay').classList.remove('show');}
-function adjustQty(d){if(currentItem.qty+d>0){currentItem.qty+=d;document.getElementById('modalQty').textContent=currentItem.qty;updateModalTotal();}}
-function toggleNote(el,note){el.classList.toggle('active');currentItem.notes=el.classList.contains('active')?[...currentItem.notes,note]:currentItem.notes.filter(n=>n!==note);}
-function toggleExcludeMode(){excludeMode=!excludeMode;document.getElementById('excludeToggle').classList.toggle('active',excludeMode);document.querySelectorAll('#toppingChips .chip').forEach(chip=>{chip.classList.toggle('exclude',excludeMode);chip.classList.remove('active');});currentItem.tops=[];}
-function toggleTopping(el,name){el.classList.toggle('active');if(el.classList.contains('active'))currentItem.tops.push((excludeMode?'Không ':'')+name);else currentItem.tops=currentItem.tops.filter(t=>t!==(excludeMode?'Không ':'')+name);}
-function updateModalTotal(){document.getElementById('modalTotal').textContent=(currentItem.price*currentItem.qty).toLocaleString()+'đ';}
-function addToCart(){currentItem.customNote=document.getElementById('customNote').value.trim();cart.push({...currentItem,cartId:Date.now()});document.getElementById('modalOverlay').classList.remove('show');updateCartBar();showToast('Đã thêm vào giỏ');}
-function showToast(text){const toast=document.getElementById('toast');document.getElementById('toastText').textContent=text;toast.classList.add('show');setTimeout(()=>toast.classList.remove('show'),2000);}
-function updateCartBar(){const bar=document.getElementById('cartBar');if(cart.length>0){bar.classList.add('show');document.getElementById('cartCount').textContent=cart.reduce((s,i)=>s+i.qty,0);document.getElementById('cartTotal').textContent=cart.reduce((s,i)=>s+(i.price*i.qty),0).toLocaleString()+'đ';}else{bar.classList.remove('show');}}
-function openCartModal(){renderCartItems();document.getElementById('cartModalOverlay').classList.add('show');}
-function closeCartModal(e){if(!e||e.target.id==='cartModalOverlay')document.getElementById('cartModalOverlay').classList.remove('show');}
-function renderCartItems(){
-    const body=document.getElementById('cartBody');
-    if(!cart.length){body.innerHTML='<div class="cart-empty">🛒 Giỏ hàng trống</div>';document.getElementById('cartSummaryTotal').textContent='0đ';return;}
-    body.innerHTML=cart.map((item,i)=>{
-        let d=[];if(item.notes.length)d.push(item.notes.join(', '));if(item.tops.length)d.push(item.tops.join(', '));if(item.customNote)d.push('📝 '+item.customNote);
-        return '<div class="cart-item"><img class="cart-item-img" src="'+item.img+'" onerror="this.src=\'/static/logo.png\'"><div class="cart-item-info"><div class="cart-item-name">'+item.name+'</div>'+(d.length?'<div class="cart-item-detail">'+d.join(' • ')+'</div>':'')+'<div class="cart-item-bottom"><div class="cart-item-price">'+(item.price*item.qty).toLocaleString()+'đ</div><div class="cart-item-qty"><button class="cart-qty-btn '+(item.qty===1?'delete':'')+'" onclick="updateCartItem('+i+',-1)">'+(item.qty===1?'🗑️':'−')+'</button><span class="cart-item-num">'+item.qty+'</span><button class="cart-qty-btn" onclick="updateCartItem('+i+',1)">+</button></div></div></div></div>';
+
+function renderProducts() {
+    let filtered = PRODUCTS.filter(p => p.cat === currentCat);
+    if (searchQuery) filtered = PRODUCTS.filter(p => p.name.toLowerCase().includes(searchQuery));
+    if (!filtered.length) {
+        document.getElementById('products').innerHTML = '<div class="no-results">Không tìm thấy</div>';
+        return;
+    }
+    document.getElementById('products').innerHTML = filtered.map(p =>
+        `<div class="product-card" onclick="openModal(${p.id})">
+            <img class="prod-img" src="/static/logo.png" data-src="${p.img}" loading="lazy">
+            <div class="prod-info">
+                <div class="prod-name">${p.name}</div>
+                <div class="prod-price">${p.price.toLocaleString()}đ</div>
+            </div>
+        </div>`
+    ).join('');
+    requestAnimationFrame(() => {
+        document.querySelectorAll('.prod-img[data-src]').forEach(img => {
+            const src = img.dataset.src;
+            const n = new Image();
+            n.onload = () => { img.src = src; img.classList.add('loaded'); };
+            n.onerror = () => { img.src = '/static/logo.png'; img.classList.add('loaded'); };
+            n.src = src;
+        });
+    });
+}
+
+function openModal(id) {
+    const p = PRODUCTS.find(x => x.id === id);
+    currentItem = { ...p, qty: 1, tops: [], notes: [], customNote: '' };
+    
+    // Reset states
+    excludeMode = false;
+    excludedToppings = [];
+    compensateToppings = [];
+    selectedToppings = [];
+    
+    document.getElementById('modalImg').src = p.img;
+    document.getElementById('modalImg').onerror = function() { this.src = '/static/logo.png'; };
+    document.getElementById('modalName').textContent = p.name;
+    document.getElementById('modalPrice').textContent = p.price.toLocaleString() + 'đ';
+    document.getElementById('modalQty').textContent = 1;
+    document.getElementById('customNote').value = '';
+    
+    // Render notes
+    document.getElementById('noteChips').innerHTML = NOTES.map(n =>
+        `<div class="chip chip-note" onclick="toggleNote(this,'${n}')">${n}</div>`
+    ).join('');
+    
+    // Determine toppings based on category
+    let toppings = [];
+    const label = document.getElementById('toppingLabel');
+    const compensateSection = document.getElementById('compensateSection');
+    
+    if (p.cat === 'traicay') {
+        toppings = TOPPINGS_FRUIT;
+        label.style.display = 'flex';
+    } else if (p.cat === 'topping') {
+        label.style.display = 'none';
+        document.getElementById('toppingChips').innerHTML = '';
+        compensateSection.style.display = 'none';
+    } else {
+        toppings = TOPPINGS_BASIC;
+        label.style.display = 'flex';
+    }
+    
+    currentToppings = toppings;
+    
+    // Reset exclude toggle
+    document.getElementById('excludeToggle').classList.remove('active');
+    compensateSection.style.display = 'none';
+    
+    // Render toppings
+    if (toppings.length) {
+        renderToppingChips();
+    }
+    
+    updateModalTotal();
+    document.getElementById('modalOverlay').classList.add('show');
+}
+
+function renderToppingChips() {
+    const container = document.getElementById('toppingChips');
+    container.innerHTML = currentToppings.map(t => {
+        let classes = 'chip';
+        if (excludeMode) {
+            classes += ' exclude';
+            if (excludedToppings.includes(t)) {
+                classes += ' active';
+            }
+        } else {
+            if (selectedToppings.includes(t)) {
+                classes += ' active';
+            }
+        }
+        return `<div class="${classes}" onclick="toggleTopping(this,'${t}')">${t}</div>`;
     }).join('');
-    document.getElementById('cartSummaryTotal').textContent=cart.reduce((s,i)=>s+(i.price*i.qty),0).toLocaleString()+'đ';
 }
-function updateCartItem(i,d){if(cart[i].qty+d<=0)cart.splice(i,1);else cart[i].qty+=d;renderCartItems();updateCartBar();}
-function clearCart(){if(cart.length&&confirm('Xóa tất cả?')){cart=[];renderCartItems();updateCartBar();}}
-async function submitOrder(){
-    if(!cart.length)return showToast('Giỏ hàng trống!');
-    const pin=localStorage.getItem('khi_pin');if(!pin||!staffInfo){showToast('Phiên hết hạn!');logout();return;}
-    const data={order_id:'KHI'+orderId,customer:document.getElementById('customerName').value||'Khách lẻ',staff_name:staffInfo.name,staff_pin:pin,items:cart.map(i=>({name:i.name,price:i.price,qty:i.qty,tops:i.tops,notes:i.customNote?[...i.notes,i.customNote]:i.notes})),total:cart.reduce((s,i)=>s+(i.price*i.qty),0)};
-    const btn=document.getElementById('submitBtn');btn.innerHTML='<span class="loading"></span>Đang gửi...';btn.disabled=true;
-    try{
-        const res=await fetch('/api/submit_order',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
-        const result=await res.json();
-        if(result.success){showToast('✅ Đã gửi order!');cart=[];updateCartBar();document.getElementById('cartModalOverlay').classList.remove('show');document.getElementById('customerName').value='';document.getElementById('orderNum').textContent='Đơn #'+(Math.floor(Math.random()*900)+100);}
-        else{showToast('❌ '+result.message);}
-    }catch(err){showToast('❌ Không thể kết nối!');}
-    btn.innerHTML='GỬI BẾP 🚀';btn.disabled=false;
+
+function renderCompensateChips() {
+    const container = document.getElementById('compensateChips');
+    const maxCompensate = excludedToppings.length;
+    const currentCount = compensateToppings.length;
+    
+    // Filter out excluded toppings from available compensate options
+    const availableToppings = currentToppings.filter(t => !excludedToppings.includes(t));
+    
+    container.innerHTML = availableToppings.map(t => {
+        let classes = 'chip compensate';
+        const isSelected = compensateToppings.includes(t);
+        const isDisabled = !isSelected && currentCount >= maxCompensate;
+        
+        if (isSelected) {
+            classes += ' active';
+        }
+        if (isDisabled) {
+            classes += ' disabled';
+        }
+        return `<div class="${classes}" onclick="toggleCompensate(this,'${t}')">${t}</div>`;
+    }).join('');
+    
+    document.getElementById('compensateCount').textContent = `Đã chọn ${currentCount}/${maxCompensate}`;
 }
+
+function closeModal(e) {
+    if (!e || e.target.id === 'modalOverlay' || e.target.classList.contains('modal-close')) {
+        document.getElementById('modalOverlay').classList.remove('show');
+    }
+}
+
+function adjustQty(d) {
+    if (currentItem.qty + d > 0) {
+        currentItem.qty += d;
+        document.getElementById('modalQty').textContent = currentItem.qty;
+        updateModalTotal();
+    }
+}
+
+function toggleNote(el, note) {
+    el.classList.toggle('active');
+    if (el.classList.contains('active')) {
+        currentItem.notes.push(note);
+    } else {
+        currentItem.notes = currentItem.notes.filter(n => n !== note);
+    }
+}
+
+function toggleExcludeMode() {
+    excludeMode = !excludeMode;
+    document.getElementById('excludeToggle').classList.toggle('active', excludeMode);
+    
+    if (!excludeMode) {
+        // Reset when turning off exclude mode
+        excludedToppings = [];
+        compensateToppings = [];
+        selectedToppings = [];
+        document.getElementById('compensateSection').style.display = 'none';
+    }
+    
+    renderToppingChips();
+}
+
+function toggleTopping(el, name) {
+    if (excludeMode) {
+        // Exclude mode: toggle excluded toppings
+        if (excludedToppings.includes(name)) {
+            excludedToppings = excludedToppings.filter(t => t !== name);
+            // Also remove any compensate that exceeds the new limit
+            while (compensateToppings.length > excludedToppings.length) {
+                compensateToppings.pop();
+            }
+        } else {
+            excludedToppings.push(name);
+        }
+        
+        // Show/hide compensate section
+        const compensateSection = document.getElementById('compensateSection');
+        if (excludedToppings.length > 0) {
+            compensateSection.style.display = 'block';
+            renderCompensateChips();
+        } else {
+            compensateSection.style.display = 'none';
+            compensateToppings = [];
+        }
+        
+        renderToppingChips();
+    } else {
+        // Normal mode: select specific toppings (only these)
+        if (selectedToppings.includes(name)) {
+            selectedToppings = selectedToppings.filter(t => t !== name);
+        } else {
+            selectedToppings.push(name);
+        }
+        renderToppingChips();
+    }
+}
+
+function toggleCompensate(el, name) {
+    if (el.classList.contains('disabled')) return;
+    
+    if (compensateToppings.includes(name)) {
+        compensateToppings = compensateToppings.filter(t => t !== name);
+    } else {
+        if (compensateToppings.length < excludedToppings.length) {
+            compensateToppings.push(name);
+        }
+    }
+    
+    renderCompensateChips();
+}
+
+function updateModalTotal() {
+    document.getElementById('modalTotal').textContent = (currentItem.price * currentItem.qty).toLocaleString() + 'đ';
+}
+
+function addToCart() {
+    currentItem.customNote = document.getElementById('customNote').value.trim();
+    
+    // Build tops array based on mode
+    let tops = [];
+    
+    if (excludeMode && excludedToppings.length > 0) {
+        // Add excluded toppings with "Không" prefix
+        excludedToppings.forEach(t => {
+            tops.push('Không ' + t);
+        });
+        // Add compensate toppings with "Bù" prefix
+        compensateToppings.forEach(t => {
+            tops.push('Bù ' + t);
+        });
+    } else if (selectedToppings.length > 0) {
+        // Normal mode: only selected toppings
+        tops = [...selectedToppings];
+    }
+    
+    currentItem.tops = tops;
+    
+    cart.push({ ...currentItem, cartId: Date.now() });
+    document.getElementById('modalOverlay').classList.remove('show');
+    updateCartBar();
+    showToast('Đã thêm vào giỏ');
+}
+
+function showToast(text) {
+    const toast = document.getElementById('toast');
+    document.getElementById('toastText').textContent = text;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 2000);
+}
+
+function updateCartBar() {
+    const bar = document.getElementById('cartBar');
+    if (cart.length > 0) {
+        bar.classList.add('show');
+        document.getElementById('cartCount').textContent = cart.reduce((s, i) => s + i.qty, 0);
+        document.getElementById('cartTotal').textContent = cart.reduce((s, i) => s + (i.price * i.qty), 0).toLocaleString() + 'đ';
+    } else {
+        bar.classList.remove('show');
+    }
+}
+
+function openCartModal() {
+    renderCartItems();
+    document.getElementById('cartModalOverlay').classList.add('show');
+}
+
+function closeCartModal(e) {
+    if (!e || e.target.id === 'cartModalOverlay') {
+        document.getElementById('cartModalOverlay').classList.remove('show');
+    }
+}
+
+function renderCartItems() {
+    const body = document.getElementById('cartBody');
+    if (!cart.length) {
+        body.innerHTML = '<div class="cart-empty">🛒 Giỏ hàng trống</div>';
+        document.getElementById('cartSummaryTotal').textContent = '0đ';
+        return;
+    }
+    body.innerHTML = cart.map((item, i) => {
+        let d = [];
+        if (item.notes.length) d.push(item.notes.join(', '));
+        if (item.tops.length) d.push(item.tops.join(', '));
+        if (item.customNote) d.push('📝 ' + item.customNote);
+        return `<div class="cart-item">
+            <img class="cart-item-img" src="${item.img}" onerror="this.src='/static/logo.png'">
+            <div class="cart-item-info">
+                <div class="cart-item-name">${item.name}</div>
+                ${d.length ? '<div class="cart-item-detail">' + d.join(' • ') + '</div>' : ''}
+                <div class="cart-item-bottom">
+                    <div class="cart-item-price">${(item.price * item.qty).toLocaleString()}đ</div>
+                    <div class="cart-item-qty">
+                        <button class="cart-qty-btn ${item.qty === 1 ? 'delete' : ''}" onclick="updateCartItem(${i},-1)">${item.qty === 1 ? '🗑️' : '−'}</button>
+                        <span class="cart-item-num">${item.qty}</span>
+                        <button class="cart-qty-btn" onclick="updateCartItem(${i},1)">+</button>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+    document.getElementById('cartSummaryTotal').textContent = cart.reduce((s, i) => s + (i.price * i.qty), 0).toLocaleString() + 'đ';
+}
+
+function updateCartItem(i, d) {
+    if (cart[i].qty + d <= 0) {
+        cart.splice(i, 1);
+    } else {
+        cart[i].qty += d;
+    }
+    renderCartItems();
+    updateCartBar();
+}
+
+function clearCart() {
+    if (cart.length && confirm('Xóa tất cả?')) {
+        cart = [];
+        renderCartItems();
+        updateCartBar();
+    }
+}
+
+async function submitOrder() {
+    if (!cart.length) return showToast('Giỏ hàng trống!');
+    const pin = localStorage.getItem('khi_pin');
+    if (!pin || !staffInfo) {
+        showToast('Phiên hết hạn!');
+        logout();
+        return;
+    }
+    
+    const data = {
+        order_id: 'KHI' + orderId,
+        customer: document.getElementById('customerName').value || 'Khách lẻ',
+        staff_name: staffInfo.name,
+        staff_pin: pin,
+        items: cart.map(i => ({
+            name: i.name,
+            price: i.price,
+            qty: i.qty,
+            tops: i.tops,
+            notes: i.customNote ? [...i.notes, i.customNote] : i.notes
+        })),
+        total: cart.reduce((s, i) => s + (i.price * i.qty), 0)
+    };
+    
+    const btn = document.getElementById('submitBtn');
+    btn.innerHTML = '<span class="loading"></span>Đang gửi...';
+    btn.disabled = true;
+    
+    try {
+        const res = await fetch('/api/submit_order', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        const result = await res.json();
+        if (result.success) {
+            showToast('✅ Đã gửi order!');
+            cart = [];
+            updateCartBar();
+            document.getElementById('cartModalOverlay').classList.remove('show');
+            document.getElementById('customerName').value = '';
+            document.getElementById('orderNum').textContent = 'Đơn #' + (Math.floor(Math.random() * 900) + 100);
+        } else {
+            showToast('❌ ' + result.message);
+        }
+    } catch (err) {
+        showToast('❌ Không thể kết nối!');
+    }
+    
+    btn.innerHTML = 'GỬI BẾP 🚀';
+    btn.disabled = false;
+}
+
 checkAuth();
 </script>
 </body>
