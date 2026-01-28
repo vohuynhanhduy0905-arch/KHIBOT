@@ -19,7 +19,7 @@ from config import (
     DAILY_CHECKIN_REWARD, STREAK_7_BONUS
 )
 from database import SessionLocal, Employee, ShopLog
-from staff_sheet import get_staff_by_telegram, register_staff, get_staff_emoji
+from staff_sheet import get_staff_by_telegram, get_staff_emoji, register_staff, update_staff_emoji
 from utils import (
     get_rank_info, get_random_gift, create_card_image, 
     generate_streak_display, SPAM_TRACKER
@@ -31,7 +31,7 @@ def get_main_menu():
     keyboard = [
         ["💳 Ví & Thẻ", "📅 Điểm Danh"],
         ["🎰 Giải Trí", "🛒 Shop Xu"],
-        [KeyboardButton("⚡ Order Nhanh", web_app=WebAppInfo(url=f"{WEB_URL}/order"))]
+        [KeyboardButton("⚡ Order Nhanh (Vào Nhóm)", web_app=WebAppInfo(url=f"{WEB_URL}/webapp"))]
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
@@ -103,11 +103,11 @@ async def check_private(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ==========================================
 # /start - Khởi động bot
-# EMOJI ĐƯỢC LƯU VÀO GOOGLE SHEET
+# EMOJI ĐƯỢC ĐỒNG BỘ VỚI GOOGLE SHEET
 # ==========================================
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Xử lý lệnh /start - ĐỒNG BỘ VỚI GOOGLE SHEET"""
+    """Xử lý lệnh /start - ĐỒNG BỘ EMOJI VỚI GOOGLE SHEET"""
     if not await check_private(update, context): 
         return
     
@@ -115,44 +115,50 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     db = SessionLocal()
     
     try:
-        # Kiểm tra trong database trước
         emp = db.query(Employee).filter(Employee.telegram_id == str(user.id)).first()
         
-        # Lấy emoji từ Google Sheet (nguồn chính)
-        sheet_emoji = get_staff_emoji(str(user.id))
+        # Lấy emoji từ Google Sheet (nguồn chính - không mất khi deploy)
+        sheet_emoji = None
+        try:
+            sheet_emoji = get_staff_emoji(str(user.id))
+        except Exception as e:
+            print(f"Lỗi đọc Sheet: {e}")
         
         if not emp:
             # Chưa có trong DB → Tạo mới
-            # Lấy emoji từ Sheet nếu có, không thì tạo mới
             if sheet_emoji:
+                # Có emoji trong Sheet → dùng emoji đó
                 emoji = sheet_emoji
             else:
-                # Tạo emoji mới và lưu vào Sheet
+                # Chưa có → tạo emoji mới
                 used_emojis = [e.emoji for e in db.query(Employee).all() if e.emoji]
                 available = [e for e in EMOJI_POOL if e not in used_emojis]
                 if not available:
                     available = EMOJI_POOL
                 emoji = random.choice(available)
+                
+                # Lưu emoji vào Sheet
+                try:
+                    register_staff(user.full_name, "", str(user.id))
+                except Exception as e:
+                    print(f"Lỗi ghi Sheet: {e}")
             
             emp = Employee(telegram_id=str(user.id), name=user.full_name, emoji=emoji)
             db.add(emp)
             db.commit()
-            
-            # Đồng bộ lên Google Sheet
-            try:
-                register_staff(user.full_name, "", str(user.id))
-            except Exception as e:
-                print(f"Lỗi đồng bộ Sheet: {e}")
         else:
-            # Đã có trong DB → Đồng bộ emoji từ Sheet
-            if sheet_emoji and sheet_emoji != emp.emoji:
-                # Sheet có emoji khác → cập nhật DB theo Sheet
-                emp.emoji = sheet_emoji
-                db.commit()
-            elif not sheet_emoji and emp.emoji:
-                # Sheet chưa có → đồng bộ từ DB lên Sheet
+            # Đã có trong DB → Đồng bộ emoji
+            if sheet_emoji:
+                # Sheet có emoji → cập nhật DB theo Sheet (ưu tiên Sheet)
+                if emp.emoji != sheet_emoji:
+                    emp.emoji = sheet_emoji
+                    db.commit()
+            else:
+                # Sheet chưa có emoji → ghi emoji từ DB lên Sheet
                 try:
                     register_staff(emp.name, "", str(user.id))
+                    if emp.emoji:
+                        update_staff_emoji(str(user.id), emp.emoji)
                 except Exception as e:
                     print(f"Lỗi đồng bộ Sheet: {e}")
         
@@ -188,56 +194,53 @@ async def me_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     if emp:
         # Lấy emoji từ Sheet (ưu tiên)
-        sheet_emoji = get_staff_emoji(str(user.id))
-        emoji = sheet_emoji if sheet_emoji else emp.emoji
+        sheet_emoji = None
+        try:
+            sheet_emoji = get_staff_emoji(str(user.id))
+        except:
+            pass
+        
+        # Dùng emoji từ Sheet nếu có, không thì dùng từ DB
+        display_emoji = sheet_emoji if sheet_emoji else emp.emoji
         
         wait_msg = await update.message.reply_text("📸 Đợi cái ní, đang lấy avt để in thẻ...")
         
+        # Lấy Avatar
+        avatar_io = None
         try:
-            # Lấy avatar
-            photos = await context.bot.get_user_profile_photos(user.id, limit=1)
-            avatar_bytes = None
+            photos = await user.get_profile_photos(limit=1)
             if photos.total_count > 0:
-                file = await context.bot.get_file(photos.photos[0][0].file_id)
-                avatar_data = await file.download_as_bytearray()
-                avatar_bytes = io.BytesIO(avatar_data)
-            
-            # Tạo thẻ
-            rank_name, rank_icon = get_rank_info(emp.coin)
-            card_bytes = create_card_image(
-                name=emp.name,
-                emoji=emoji,
-                rank_name=rank_name,
-                rank_icon=rank_icon,
-                balance=emp.balance,
-                coin=emp.coin,
-                avatar_bytes=avatar_bytes
-            )
-            
-            await wait_msg.delete()
-            
-            # Caption
-            caption = (
-                f"<b>🎴 THẺ NHÂN VIÊN</b>\n\n"
-                f"👤 <b>{emp.name}</b> {emoji}\n"
-                f"🏅 Cấp bậc: {rank_icon} {rank_name}\n"
-                f"💵 Lương: <b>{emp.balance:,.0f}đ</b>\n"
-                f"🪙 Xu game: <b>{emp.coin:,.0f} xu</b>\n\n"
-                f"<i>💡 Gõ /diemdanh để nhận Xu mỗi ngày!</i>"
-            )
-            
-            await update.message.reply_photo(
-                photo=card_bytes,
-                caption=caption,
-                parse_mode="HTML"
-            )
-        except Exception as e:
-            await wait_msg.edit_text(f"❌ Lỗi tạo thẻ: {e}")
+                photo_file = await photos.photos[0][-1].get_file()
+                avatar_bytes = await photo_file.download_as_bytearray()
+                avatar_io = io.BytesIO(avatar_bytes)
+        except: 
+            pass
+
+        # Tạo thẻ
+        loop = asyncio.get_running_loop()
+        photo_file = await loop.run_in_executor(
+            None, create_card_image, emp.name, display_emoji, emp.balance, emp.coin, avatar_io
+        )
+
+        rank_name, rank_icon = get_rank_info(emp.balance)
+
+        # Caption đẹp như file cũ
+        caption = (
+            f"💳 <b>THẺ NHÂN VIÊN</b>\n"
+            f"━━━━━━━━━━━━━━━\n"
+            f"👤 <b>Cấp bậc:</b> {rank_icon} {rank_name}\n"
+            f"💰 <b>Lương:</b> {emp.balance:,.0f}đ\n"
+            f"🪙 <b>Xu game:</b> {emp.coin:,.0f} xu\n"
+            f"━━━━━━━━━━━━━━━\n"
+            f"👉 <i>Gõ /diemdanh để nhận Xu mỗi ngày!</i>"
+        )
+
+        await update.message.reply_photo(photo=photo_file, caption=caption, parse_mode="HTML")
+        await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=wait_msg.message_id)
     else:
-        await update.message.reply_text("⚠️ Bạn chưa đăng ký! Gõ /start")
+        await update.message.reply_text("Chưa đăng ký. Bấm /start")
     
     db.close()
-
 
 
 # ==========================================
