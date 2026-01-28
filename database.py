@@ -50,6 +50,11 @@ class Employee(Base):
     last_checkin = Column(Date, nullable=True)   # Ngày điểm danh (mới - cho streak)
     checkin_streak = Column(Integer, default=0)  # Số ngày liên tục
     last_gift_open = Column(Date, nullable=True) # Ngày mở quà gần nhất
+    
+    # === MỚI: Giới hạn Tài Xỉu ===
+    tx_last_date = Column(Date, nullable=True)   # Ngày chơi TX gần nhất
+    tx_play_count = Column(Integer, default=0)   # Số lần chơi trong ngày
+    tx_total_bet = Column(Float, default=0.0)    # Tổng tiền cược trong ngày
 
 # --- BẢNG LỊCH SỬ ĐỔI QUÀ (SHOP) ---
 class ShopLog(Base):
@@ -92,6 +97,22 @@ def migrate_db():
                 conn.execute(text('ALTER TABLE employees ADD COLUMN last_gift_open DATE'))
                 conn.commit()
                 print("✅ Đã thêm cột last_gift_open")
+            
+            # === MỚI: Thêm cột giới hạn Tài Xỉu ===
+            if 'tx_last_date' not in columns:
+                conn.execute(text('ALTER TABLE employees ADD COLUMN tx_last_date DATE'))
+                conn.commit()
+                print("✅ Đã thêm cột tx_last_date")
+            
+            if 'tx_play_count' not in columns:
+                conn.execute(text('ALTER TABLE employees ADD COLUMN tx_play_count INTEGER DEFAULT 0'))
+                conn.commit()
+                print("✅ Đã thêm cột tx_play_count")
+            
+            if 'tx_total_bet' not in columns:
+                conn.execute(text('ALTER TABLE employees ADD COLUMN tx_total_bet FLOAT DEFAULT 0'))
+                conn.commit()
+                print("✅ Đã thêm cột tx_total_bet")
                 
         print("✅ Database migration hoàn tất!")
         

@@ -1,9 +1,10 @@
 # --- FILE: main.py ---
 # Bot Trà Sữa Khỉ - Phiên bản tối ưu với modules
+# ĐÃ CẬP NHẬT: Giới hạn game Tài Xỉu
 
 import asyncio
 import random
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -23,7 +24,8 @@ from sqlalchemy.sql import func
 
 from config import (
     TOKEN, MAIN_GROUP_ID, WEB_URL, ORDER_TOPIC_ID, CHAT_TOPIC_ID, MAPS_URL,
-    MORNING_MESSAGES, EVENING_MESSAGES
+    MORNING_MESSAGES, EVENING_MESSAGES,
+    TX_WIN_RATE, TX_MAX_PLAYS_PER_DAY, TX_MAX_BET_PER_DAY  # MỚI
 )
 from database import init_db, SessionLocal, Employee, Review, ShopLog
 from staff_sheet import get_staff_by_pin
@@ -49,6 +51,57 @@ DAILY_ANNOUNCEMENT_MSG = {}
 
 # Reward cho reaction
 REACTION_REWARD = 10000
+
+
+# ==========================================
+# HÀM KIỂM TRA GIỚI HẠN TÀI XỈU (MỚI)
+# ==========================================
+
+def check_tx_limit(emp: Employee, bet_amount: int) -> tuple[bool, str]:
+    """
+    Kiểm tra giới hạn chơi Tài Xỉu
+    Returns: (can_play: bool, error_message: str)
+    """
+    today = date.today()
+    
+    # Reset nếu là ngày mới
+    if emp.tx_last_date != today:
+        emp.tx_last_date = today
+        emp.tx_play_count = 0
+        emp.tx_total_bet = 0
+    
+    # Kiểm tra số lần chơi
+    if emp.tx_play_count >= TX_MAX_PLAYS_PER_DAY:
+        return False, f"⚠️ Bạn đã chơi {TX_MAX_PLAYS_PER_DAY} lần hôm nay!\n📅 Quay lại vào ngày mai nhé."
+    
+    # Kiểm tra tổng tiền cược
+    if emp.tx_total_bet + bet_amount > TX_MAX_BET_PER_DAY:
+        remaining = TX_MAX_BET_PER_DAY - emp.tx_total_bet
+        if remaining <= 0:
+            return False, f"⚠️ Bạn đã cược hết {TX_MAX_BET_PER_DAY:,.0f} Xu hôm nay!\n📅 Quay lại vào ngày mai nhé."
+        else:
+            return False, f"⚠️ Bạn chỉ còn được cược {remaining:,.0f} Xu hôm nay!\n💡 Chọn mức cược nhỏ hơn."
+    
+    return True, ""
+
+
+def get_tx_status(emp: Employee) -> str:
+    """Lấy thông tin giới hạn hiện tại của user"""
+    today = date.today()
+    
+    # Reset nếu là ngày mới
+    if emp.tx_last_date != today:
+        plays_left = TX_MAX_PLAYS_PER_DAY
+        bet_left = TX_MAX_BET_PER_DAY
+    else:
+        plays_left = TX_MAX_PLAYS_PER_DAY - (emp.tx_play_count or 0)
+        bet_left = TX_MAX_BET_PER_DAY - (emp.tx_total_bet or 0)
+    
+    return (
+        f"📊 <b>Hạn mức hôm nay:</b>\n"
+        f"🎮 Còn {plays_left}/{TX_MAX_PLAYS_PER_DAY} lượt chơi\n"
+        f"💰 Còn {bet_left:,.0f}/{TX_MAX_BET_PER_DAY:,.0f} Xu cược"
+    )
 
 
 # ==========================================
@@ -154,12 +207,40 @@ async def handle_game_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
         await query.edit_message_text(msg, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
         return
     
+    # ==========================================
+    # MENU TÀI XỈU (ĐÃ CẬP NHẬT)
+    # ==========================================
     if data == "menu_tx":
         if chat_type != "private":
             await query.answer("🎲 Vào chat riêng với Bot để chơi!", show_alert=True)
             return
-        txt = "🎲 <b>TÀI XỈU SIÊU TỐC</b>\n━━━━━━━━━━━━━━━━\n🔴 <b>XỈU:</b> 3 - 10 điểm\n🔵 <b>TÀI:</b> 11 - 18 điểm\n⚡ <b>Tỉ lệ ăn:</b> 1 ăn 0.85\n⚠️ <b>Bão (3 số giống nhau):</b> Nhà cái ăn hết!"
-        kb = [[InlineKeyboardButton("🔴 Đặt XỈU", callback_data="tx_chon_xiu"), InlineKeyboardButton("🔵 Đặt TÀI", callback_data="tx_chon_tai")], [InlineKeyboardButton("🔙 Quay lại", callback_data="back_home")]]
+        
+        # Lấy thông tin giới hạn của user
+        db = SessionLocal()
+        emp = db.query(Employee).filter(Employee.telegram_id == str(user.id)).first()
+        
+        if emp:
+            status = get_tx_status(emp)
+        else:
+            status = ""
+        db.close()
+        
+        # Cập nhật tỷ lệ ăn mới
+        win_percent = int(TX_WIN_RATE * 100)
+        txt = (
+            f"🎲 <b>TÀI XỈU SIÊU TỐC</b>\n"
+            f"━━━━━━━━━━━━━━━━\n"
+            f"🔴 <b>XỈU:</b> 3 - 10 điểm\n"
+            f"🔵 <b>TÀI:</b> 11 - 18 điểm\n"
+            f"⚡ <b>Tỉ lệ ăn:</b> 1 ăn {TX_WIN_RATE}\n"
+            f"⚠️ <b>Bão (3 số giống nhau):</b> Nhà cái ăn hết!\n"
+            f"━━━━━━━━━━━━━━━━\n"
+            f"{status}"
+        )
+        kb = [
+            [InlineKeyboardButton("🔴 Đặt XỈU", callback_data="tx_chon_xiu"), InlineKeyboardButton("🔵 Đặt TÀI", callback_data="tx_chon_tai")],
+            [InlineKeyboardButton("🔙 Quay lại", callback_data="back_home")]
+        ]
         await query.edit_message_text(txt, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
         return
     
@@ -189,51 +270,105 @@ async def handle_game_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
         await query.edit_message_text(txt, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
         return
     
+    # ==========================================
+    # XỬ LÝ ĐẶT CƯỢC TÀI XỈU (ĐÃ CẬP NHẬT)
+    # ==========================================
     if data.startswith("tx_bet_"):
         parts = data.split("_")
         choice, amount = parts[2], int(parts[3])
+        
         db = SessionLocal()
         emp = db.query(Employee).filter(Employee.telegram_id == str(user.id)).first()
-        if not emp or emp.coin < amount:
+        
+        if not emp:
+            await query.answer("❌ Bạn chưa đăng ký!", show_alert=True)
+            db.close()
+            return
+        
+        if emp.coin < amount:
             await query.answer("💸 Không đủ Xu!", show_alert=True)
             db.close()
             return
+        
+        # === KIỂM TRA GIỚI HẠN (MỚI) ===
+        can_play, error_msg = check_tx_limit(emp, amount)
+        if not can_play:
+            await query.answer(error_msg, show_alert=True)
+            db.close()
+            return
+        
+        # Trừ tiền cược
         emp.coin -= amount
+        
+        # Cập nhật tracking (MỚI)
+        today = date.today()
+        if emp.tx_last_date != today:
+            emp.tx_last_date = today
+            emp.tx_play_count = 1
+            emp.tx_total_bet = amount
+        else:
+            emp.tx_play_count = (emp.tx_play_count or 0) + 1
+            emp.tx_total_bet = (emp.tx_total_bet or 0) + amount
+        
         db.commit()
         db.close()
+        
         try:
             await query.message.delete()
         except:
             pass
+        
+        # Tung xúc xắc
         dice_msg = await context.bot.send_dice(chat_id=user.id, emoji="🎲")
         dice1 = dice_msg.dice.value
         await asyncio.sleep(1)
+        
         dice_msg2 = await context.bot.send_dice(chat_id=user.id, emoji="🎲")
         dice2 = dice_msg2.dice.value
         await asyncio.sleep(1)
+        
         dice_msg3 = await context.bot.send_dice(chat_id=user.id, emoji="🎲")
         dice3 = dice_msg3.dice.value
         await asyncio.sleep(2)
+        
         total = dice1 + dice2 + dice3
         is_bao = (dice1 == dice2 == dice3)
         result_is_xiu = total <= 10
         winnings = 0
+        
         if is_bao:
             result = "💥 BÃO! Nhà cái ăn hết!"
         elif (choice == "xiu" and result_is_xiu) or (choice == "tai" and not result_is_xiu):
-            winnings = int(amount * 1.85)
+            # === TỶ LỆ ĂN MỚI ===
+            winnings = int(amount * (1 + TX_WIN_RATE))  # 1 + 0.80 = 1.80
             result = f"🎉 THẮNG! +{winnings - amount:,.0f} Xu"
         else:
             result = f"😢 THUA! -{amount:,.0f} Xu"
+        
         db = SessionLocal()
         emp = db.query(Employee).filter(Employee.telegram_id == str(user.id)).first()
         if winnings > 0:
             emp.coin += winnings
         db.commit()
         final_coin = emp.coin
+        
+        # Lấy thông tin còn lại
+        plays_left = TX_MAX_PLAYS_PER_DAY - (emp.tx_play_count or 0)
+        bet_left = TX_MAX_BET_PER_DAY - (emp.tx_total_bet or 0)
         db.close()
+        
         result_type = "XỈU" if result_is_xiu else "TÀI"
-        msg = f"🎲 <b>KẾT QUẢ TÀI XỈU</b>\n━━━━━━━━━━━━━━━━\n🎯 Bạn đặt: {'🔴 XỈU' if choice == 'xiu' else '🔵 TÀI'}\n🎲 Kết quả: {dice1} + {dice2} + {dice3} = {total} ({result_type})\n━━━━━━━━━━━━━━━━\n{result}\n🪙 Xu hiện có: <b>{final_coin:,.0f}</b>"
+        msg = (
+            f"🎲 <b>KẾT QUẢ TÀI XỈU</b>\n"
+            f"━━━━━━━━━━━━━━━━\n"
+            f"🎯 Bạn đặt: {'🔴 XỈU' if choice == 'xiu' else '🔵 TÀI'}\n"
+            f"🎲 Kết quả: {dice1} + {dice2} + {dice3} = {total} ({result_type})\n"
+            f"━━━━━━━━━━━━━━━━\n"
+            f"{result}\n"
+            f"🪙 Xu hiện có: <b>{final_coin:,.0f}</b>\n"
+            f"━━━━━━━━━━━━━━━━\n"
+            f"📊 Còn {plays_left} lượt | {bet_left:,.0f} Xu cược"
+        )
         kb = [[InlineKeyboardButton("🔄 Chơi tiếp", callback_data="menu_tx"), InlineKeyboardButton("🔙 Menu Game", callback_data="back_home")]]
         await context.bot.send_message(chat_id=user.id, text=msg, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
         return

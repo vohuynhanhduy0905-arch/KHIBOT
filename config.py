@@ -29,6 +29,13 @@ GIFT_REWARDS = [
     (20000, 5),
 ]
 
+# ==========================================
+# === CẤU HÌNH TÀI XỈU (MỚI) ===
+# ==========================================
+TX_WIN_RATE = 0.80          # Tỷ lệ ăn: 1 ăn 0.80 (giảm từ 0.85)
+TX_MAX_PLAYS_PER_DAY = 15   # Tối đa 15 lần chơi/ngày
+TX_MAX_BET_PER_DAY = 100000 # Tối đa cược 100,000 Xu/ngày
+
 # === RANK CONFIG ===
 RANK_LEVELS = [
     (0, "Dân Thường", "🌱"),
