@@ -69,33 +69,33 @@ KBB_RULES = {
 
 # === THÔNG BÁO TỰ ĐỘNG ===
 MORNING_MESSAGES = [
-    "☀️ <b>CHÀO BUỔI SÁNG CA SÁNG!</b>\n\nChúc toàn thể nhân sự ca sáng bắt đầu ngày mới với sự tập trung và năng lượng cao nhất. Hãy chuẩn bị mọi thứ thật chỉn chu.\n\n❤️ Thả tim để nhận 10,000 Xu!",
+    "☀️ <b>CHÀO BUỔI SÁNG CA SÁNG!</b>\n\nChúc toàn thể nhân sự ca sáng bắt đầu ngày mới với sự tập trung và năng lượng cao nhất. Hãy chuẩn bị mọi thứ thật chỉn chu.\n\n",
 
-    "🌅 <b>KHỞI ĐẦU NGÀY MỚI TẠI KHỈ MILKTEA.</b>\n\nChúc team ca sáng làm việc hiệu quả, phối hợp nhịp nhàng để mang lại trải nghiệm tốt nhất cho khách hàng.\n\n❤️ Thả tim để nhận 10,000 Xu!",
+    "🌅 <b>KHỞI ĐẦU NGÀY MỚI TẠI KHỈ MILKTEA.</b>\n\nChúc team ca sáng làm việc hiệu quả, phối hợp nhịp nhàng để mang lại trải nghiệm tốt nhất cho khách hàng.\n\n",
 
-    "🌞 <b>THÔNG BÁO CA SÁNG.</b>\n\nChúc các bạn một ca làm việc thuận lợi. Hãy duy trì tiêu chuẩn chất lượng và vệ sinh cửa hàng lên hàng đầu.\n\n❤️ Thả tim để nhận 10,000 Xu!",
+    "🌞 <b>THÔNG BÁO CA SÁNG.</b>\n\nChúc các bạn một ca làm việc thuận lợi. Hãy duy trì tiêu chuẩn chất lượng và vệ sinh cửa hàng lên hàng đầu.\n\n",
 
-    "⚡ <b>TINH THẦN KHỈ MILKTEA.</b>\n\nNghiêm túc trong công việc và nhiệt huyết trong phục vụ. Chúc team ca sáng hoàn thành tốt nhiệm vụ được giao.\n\n❤️ Thả tim để nhận 10,000 Xu!",
+    "⚡ <b>TINH THẦN KHỈ MILKTEA.</b>\n\nNghiêm túc trong công việc và nhiệt huyết trong phục vụ. Chúc team ca sáng hoàn thành tốt nhiệm vụ được giao.\n\n",
 
-    "🍃 <b>CHÀO NGÀY MỚI NĂNG ĐỘNG.</b>\n\nMọi sự chuẩn bị tốt vào buổi sáng sẽ mang lại kết quả tốt cho cả ngày. Cố lên nhé team ca sáng!\n\n❤️ Thả tim để nhận 10,000 Xu!",
+    "🍃 <b>CHÀO NGÀY MỚI NĂNG ĐỘNG.</b>\n\nMọi sự chuẩn bị tốt vào buổi sáng sẽ mang lại kết quả tốt cho cả ngày. Cố lên nhé team ca sáng!\n\n",
 
-    "📋 <b>TRIỂN KHAI CÔNG VIỆC CA SÁNG.</b>\n\nChúc cả team một ngày làm việc chuyên nghiệp, xử lý đơn hàng nhanh chóng và chính xác.\n\n❤️ Thả tim để nhận 10,000 Xu!",
+    "📋 <b>TRIỂN KHAI CÔNG VIỆC CA SÁNG.</b>\n\nChúc cả team một ngày làm việc chuyên nghiệp, xử lý đơn hàng nhanh chóng và chính xác.\n\n",
 
-    "💎 <b>CAM KẾT CHẤT LƯỢNG.</b>\n\nBắt đầu ngày mới bằng sự tận tâm. Chúc các chiến binh Khỉ Milktea ca sáng gặt hái được nhiều thành công.\n\n❤️ Thả tim để nhận 10,000 Xu!"
+    "💎 <b>CAM KẾT CHẤT LƯỢNG.</b>\n\nBắt đầu ngày mới bằng sự tận tâm. Chúc các chiến binh Khỉ Milktea ca sáng gặt hái được nhiều thành công.\n\n"
 ]
 
 EVENING_MESSAGES = [
-    "🌇 <b>BẮT ĐẦU CA CHIỀU.</b>\n\nChúc toàn đội ngũ ca chiều giữ vững phong độ, làm việc tập trung để hoàn thành chỉ tiêu trong ngày.\n\n❤️ Thả tim để nhận 10,000 Xu!",
+    "🌇 <b>BẮT ĐẦU CA CHIỀU.</b>\n\nChúc toàn đội ngũ ca chiều giữ vững phong độ, làm việc tập trung để hoàn thành chỉ tiêu trong ngày.\n\n",
 
-    "🌆 <b>CHÀO TEAM CA CHIỀU.</b>\n\nDù cuối ngày có thể mệt mỏi, hãy cùng nhau duy trì sự chuyên nghiệp đến những đơn hàng cuối cùng.\n\n❤️ Thả tim để nhận 10,000 Xu!",
+    "🌆 <b>CHÀO TEAM CA CHIỀU.</b>\n\nDù cuối ngày có thể mệt mỏi, hãy cùng nhau duy trì sự chuyên nghiệp đến những đơn hàng cuối cùng.\n\n",
 
-    "🚀 <b>TẬP TRUNG CA CAO ĐIỂM.</b>\n\nCa chiều là thời điểm quan trọng, chúc team phối hợp ăn ý và xử lý công việc thật hiệu quả.\n\n❤️ Thả tim để nhận 10,000 Xu!",
+    "🚀 <b>TẬP TRUNG CA CAO ĐIỂM.</b>\n\nCa chiều là thời điểm quan trọng, chúc team phối hợp ăn ý và xử lý công việc thật hiệu quả.\n\n",
 
-    "🤝 <b>TINH THẦN ĐỒNG ĐỘI.</b>\n\nCảm ơn nỗ lực của các bạn trong ca chiều. Hãy hỗ trợ nhau để đảm bảo vận hành tốt nhất tại Khỉ Milktea.\n\n❤️ Thả tim để nhận 10,000 Xu!",
+    "🤝 <b>TINH THẦN ĐỒNG ĐỘI.</b>\n\nCảm ơn nỗ lực của các bạn trong ca chiều. Hãy hỗ trợ nhau để đảm bảo vận hành tốt nhất tại Khỉ Milktea.\n\n",
 
-    "🌙 <b>NỖ LỰC VỀ ĐÍCH.</b>\n\nChúc team ca chiều có một buổi làm việc năng suất. Sự tỉ mỉ của các bạn chính là bộ mặt của thương hiệu.\n\n❤️ Thả tim để nhận 10,000 Xu!",
+    "🌙 <b>NỖ LỰC VỀ ĐÍCH.</b>\n\nChúc team ca chiều có một buổi làm việc năng suất. Sự tỉ mỉ của các bạn chính là bộ mặt của thương hiệu.\n\n",
 
-    "🎯 <b>MỤC TIÊU CA CHIỀU.</b>\n\nHãy đảm bảo mọi quy trình được thực hiện chuẩn xác. Chúc cả team có một ca làm việc thuận lợi và an lành.\n\n❤️ Thả tim để nhận 10,000 Xu!",
+    "🎯 <b>MỤC TIÊU CA CHIỀU.</b>\n\nHãy đảm bảo mọi quy trình được thực hiện chuẩn xác. Chúc cả team có một ca làm việc thuận lợi và an lành.\n\n",
 
-    "✨ <b>HOÀN THÀNH NHIỆM VỤ.</b>\n\nChúc các bạn ca chiều làm việc đầy nhiệt huyết, giữ vững uy tín chất lượng của Khỉ Milktea cho đến khi đóng cửa.\n\n❤️ Thả tim để nhận 10,000 Xu!"
+    "✨ <b>HOÀN THÀNH NHIỆM VỤ.</b>\n\nChúc các bạn ca chiều làm việc đầy nhiệt huyết, giữ vững uy tín chất lượng của Khỉ Milktea cho đến khi đóng cửa.\n\n"
 ]
