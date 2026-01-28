@@ -42,16 +42,13 @@
         .search-clear{width:20px;height:20px;border:none;background:#ddd;border-radius:50%;font-size:12px;cursor:pointer;display:none;align-items:center;justify-content:center}
         .search-clear.show{display:flex}
         .categories{display:flex;flex-wrap:wrap;padding:12px 15px;gap:10px;background:#fff;border-bottom:1px solid var(--border)}
-        .categories::-webkit-scrollbar{display:none}
         .cat-btn{width:calc(50% - 5px);text-align:center;flex-shrink:0;padding:10px 18px;border-radius:25px;border:2px solid var(--border);background:#fff;color:var(--text-light);font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;white-space:nowrap}
         .cat-btn:active{transform:scale(.95)}
         .cat-btn.active{background:var(--primary);color:#fff;border-color:var(--primary);box-shadow:0 4px 12px rgba(26,83,54,.3)}
         .products{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:15px}
         .product-card{background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 15px rgba(0,0,0,.1);cursor:pointer;border:1px solid var(--border);transition:all .2s}
         .product-card:active{transform:scale(.96)}
-        .prod-img{width:100%;aspect-ratio:1;object-fit:cover;background:#f5f5f5;background-image:linear-gradient(90deg,#f0f0f0 25%,#e8e8e8 50%,#f0f0f0 75%);background-size:200% 100%;animation:shimmer 1.5s infinite}
-        @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
-        .prod-img[src*="logo"]{object-fit:contain;padding:15px;background:#f9f9f9}
+        .prod-img{width:100%;aspect-ratio:1;object-fit:cover;background:#f5f5f5}
         .prod-img.loaded{animation:none;background:#f9f9f9}
         .prod-info{padding:10px 8px;text-align:center}
         .prod-name{font-size:11px;font-weight:600;line-height:1.3;height:30px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
@@ -134,6 +131,8 @@
         .compensate-label{font-size:12px;font-weight:700;color:var(--success);text-transform:uppercase}
         .compensate-count{font-size:11px;color:var(--success);font-weight:600}
         .compensate-chips{display:flex;flex-wrap:wrap;gap:8px}
+        .section-divider{grid-column:1/-1;padding:10px 5px 5px;font-size:13px;font-weight:700;color:var(--primary);border-bottom:2px solid var(--primary);margin-top:10px}
+        .section-divider:first-child{margin-top:0}
     </style>
 </head>
 <body>
@@ -223,7 +222,8 @@ const CATEGORIES = [
     {id:'traicay',name:'🍹 Trà Trái Cây'},
     {id:'macchiato',name:'🥛 Macchiato'},
     {id:'dacbiet',name:'⭐ Đặc Biệt'},
-    {id:'topping',name:'🍡 Topping Thêm'}
+    {id:'topping',name:'🍡 Topping Thêm'},
+    {id:'kotop',name:'🚫 KO TOP'}
 ];
 const PRODUCTS = [
     {id:1,cat:'trasua',name:'Trà Sữa Truyền Thống',price:25000,img:'/static/menu/ts-truyenthong.jpg'},
@@ -266,489 +266,229 @@ const PRODUCTS = [
     {id:113,cat:'topping',name:'Thêm Táo Xanh',price:10000,img:'/static/menu/tp-taoxanh.jpg'},
     {id:114,cat:'topping',name:'Thêm Dưa Lưới',price:10000,img:'/static/menu/tp-dualuoi.jpg'},
     {id:115,cat:'topping',name:'Thêm Ổi Hồng',price:10000,img:'/static/menu/tp-oihong.jpg'},
-    {id:116,cat:'topping',name:'Thêm Mãng Cầu',price:10000,img:'/static/menu/tp-mangcau.jpg'}
+    {id:116,cat:'topping',name:'Thêm Mãng Cầu',price:10000,img:'/static/menu/tp-mangcau.jpg'},
+    // KO TOPPING - TRÀ SỮA
+    {id:200,cat:'kotop',subcat:'trasua',name:'TS Truyền Thống Ko Topping',price:19000,img:'/static/menu/ts-truyenthong.jpg'},
+    {id:201,cat:'kotop',subcat:'trasua',name:'TS Matcha Ko Topping',price:19000,img:'/static/menu/ts-matcha.jpg'},
+    {id:202,cat:'kotop',subcat:'trasua',name:'TS Caramel Ko Topping',price:19000,img:'/static/menu/ts-caramel.jpg'},
+    {id:203,cat:'kotop',subcat:'trasua',name:'TS Ô Long Ko Topping',price:19000,img:'/static/menu/ts-olong.jpg'},
+    {id:204,cat:'kotop',subcat:'trasua',name:'TS Chocolate Ko Topping',price:19000,img:'/static/menu/ts-chocolate.jpg'},
+    {id:205,cat:'kotop',subcat:'trasua',name:'TS Đào Ko Topping',price:19000,img:'/static/menu/ts-dao.jpg'},
+    // KO TOPPING - MACCHIATO
+    {id:210,cat:'kotop',subcat:'macchiato',name:'Trà Đào Ko Topping',price:19000,img:'/static/menu/mc-dao.jpg'},
+    {id:211,cat:'kotop',subcat:'macchiato',name:'Trà Dâu Ko Topping',price:19000,img:'/static/menu/mc-dau.jpg'},
+    {id:212,cat:'kotop',subcat:'macchiato',name:'Trà Vải Ko Topping',price:19000,img:'/static/menu/mc-vai.jpg'},
+    {id:213,cat:'kotop',subcat:'macchiato',name:'Hồng Trà Ko Topping',price:19000,img:'/static/menu/mc-hongtra.jpg'},
+    {id:214,cat:'kotop',subcat:'macchiato',name:'Ô Long Ko Topping',price:19000,img:'/static/menu/mc-olong.jpg'},
+    {id:215,cat:'kotop',subcat:'macchiato',name:'Trà Sen Ko Topping',price:19000,img:'/static/menu/mc-sen.jpg'},
+    // KO TOPPING - ĐẶC BIỆT
+    {id:220,cat:'kotop',subcat:'dacbiet',name:'Trà Sủi Ko Topping',price:19000,img:'/static/menu/db-trasui.jpg'},
+    {id:221,cat:'kotop',subcat:'dacbiet',name:'Hồng Trà Latte Ko Topping',price:22000,img:'/static/menu/db-hongtralatte.jpg'},
+    {id:222,cat:'kotop',subcat:'dacbiet',name:'Matcha Latte Ko Topping',price:22000,img:'/static/menu/db-matchalatte.jpg'},
+    // KO TOPPING - TRÀ TRÁI CÂY
+    {id:230,cat:'kotop',subcat:'traicay',name:'Trà Đác Dâu Tằm Ko Topping',price:19000,img:'/static/menu/tc-dacdautam.jpg'},
+    {id:231,cat:'kotop',subcat:'traicay',name:'Trà Đác Thơm Ko Topping',price:19000,img:'/static/menu/tc-dacthom.jpg'},
+    {id:232,cat:'kotop',subcat:'traicay',name:'Trà Ổi Hồng Ko Topping',price:19000,img:'/static/menu/tc-oihong.jpg'},
+    {id:233,cat:'kotop',subcat:'traicay',name:'Trà Nhiệt Đới Ko Topping',price:19000,img:'/static/menu/tc-nhietdoi.jpg'},
+    {id:234,cat:'kotop',subcat:'traicay',name:'Trà Táo Xanh Ko Topping',price:19000,img:'/static/menu/tc-taoxanh.jpg'},
+    {id:235,cat:'kotop',subcat:'traicay',name:'Trà Dưa Lưới Ko Topping',price:19000,img:'/static/menu/tc-dualuoi.jpg'},
+    {id:236,cat:'kotop',subcat:'traicay',name:'Trà Mãng Cầu Ko Topping',price:19000,img:'/static/menu/tc-mangcau.jpg'},
+    {id:237,cat:'kotop',subcat:'traicay',name:'Trà Cóc Hạt Đác Ko Topping',price:19000,img:'/static/menu/tc-cochatdac.jpg'}
 ];
 
-let cart = [];
-let currentItem = null;
-let currentCat = 'trasua';
-let excludeMode = false;
-let searchQuery = '';
-let staffInfo = null;
-let currentToppings = [];
-let excludedToppings = [];
-let compensateToppings = [];
-let selectedToppings = [];
+let cart=[],currentItem=null,currentCat='trasua',excludeMode=false,searchQuery='',staffInfo=null;
+let currentToppings=[],excludedToppings=[],compensateToppings=[],selectedToppings=[];
+const orderId=Math.floor(Math.random()*900)+100;
+document.getElementById('orderNum').textContent='Đơn #'+orderId;
 
-const orderId = Math.floor(Math.random() * 900) + 100;
-document.getElementById('orderNum').textContent = 'Đơn #' + orderId;
+async function login(){
+    const pin=document.getElementById('pinInput').value;
+    if(pin.length!==4){document.getElementById('loginError').textContent='Vui lòng nhập 4 số';return;}
+    try{
+        const res=await fetch('/api/verify_pin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin})});
+        const data=await res.json();
+        if(data.success){staffInfo=data.staff;localStorage.setItem('khi_pin',pin);showApp();}
+        else{document.getElementById('loginError').textContent=data.message;document.getElementById('pinInput').classList.add('error');setTimeout(()=>document.getElementById('pinInput').classList.remove('error'),300);}
+    }catch(e){document.getElementById('loginError').textContent='Lỗi kết nối!';}
+}
+function logout(){localStorage.removeItem('khi_pin');staffInfo=null;document.getElementById('loginScreen').classList.remove('hidden');document.getElementById('appContainer').classList.remove('active');document.getElementById('pinInput').value='';document.getElementById('loginError').textContent='';}
+function showApp(){document.getElementById('loginScreen').classList.add('hidden');document.getElementById('appContainer').classList.add('active');document.getElementById('staffDisplay').textContent=staffInfo.name;initApp();}
+async function checkAuth(){
+    const pin=localStorage.getItem('khi_pin');
+    if(pin){try{const res=await fetch('/api/verify_pin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin})});const data=await res.json();if(data.success){staffInfo=data.staff;showApp();return;}}catch(e){}}
+}
+function initApp(){
+    document.getElementById('categories').innerHTML=CATEGORIES.map((c,i)=>`<button class="cat-btn${i===0?' active':''}" onclick="selectCat('${c.id}',this)">${c.name}</button>`).join('');
+    renderProducts();
+}
+const searchInput=document.getElementById('searchInput'),searchClear=document.getElementById('searchClear');
+searchInput.addEventListener('input',e=>{searchQuery=e.target.value.toLowerCase().trim();searchClear.classList.toggle('show',searchQuery.length>0);renderProducts();});
+function clearSearch(){searchInput.value='';searchQuery='';searchClear.classList.remove('show');renderProducts();}
+function selectCat(id,btn){currentCat=id;document.querySelectorAll('.cat-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');clearSearch();renderProducts();}
 
-async function login() {
-    const pin = document.getElementById('pinInput').value;
-    if (pin.length !== 4) {
-        document.getElementById('loginError').textContent = 'Vui lòng nhập 4 số';
-        return;
+function renderProducts(){
+    const container=document.getElementById('products');
+    if(searchQuery){
+        const filtered=PRODUCTS.filter(p=>p.name.toLowerCase().includes(searchQuery));
+        if(!filtered.length){container.innerHTML='<div class="no-results">Không tìm thấy</div>';return;}
+        container.innerHTML=filtered.map(p=>renderCard(p)).join('');
+        lazyLoad();return;
     }
-    try {
-        const res = await fetch('/api/verify_pin', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ pin })
+    if(currentCat==='kotop'){
+        const sections=[
+            {subcat:'trasua',title:'🧋 TRÀ SỮA'},
+            {subcat:'macchiato',title:'🥛 MACCHIATO'},
+            {subcat:'dacbiet',title:'⭐ ĐẶC BIỆT'},
+            {subcat:'traicay',title:'🍹 TRÀ TRÁI CÂY'}
+        ];
+        let html='';
+        sections.forEach(s=>{
+            const items=PRODUCTS.filter(p=>p.cat==='kotop'&&p.subcat===s.subcat);
+            if(items.length){html+=`<div class="section-divider">${s.title}</div>`;html+=items.map(p=>renderCard(p)).join('');}
         });
-        const data = await res.json();
-        if (data.success) {
-            staffInfo = data.staff;
-            localStorage.setItem('khi_pin', pin);
-            showApp();
-        } else {
-            document.getElementById('loginError').textContent = data.message;
-            document.getElementById('pinInput').classList.add('error');
-            setTimeout(() => document.getElementById('pinInput').classList.remove('error'), 300);
-        }
-    } catch (e) {
-        document.getElementById('loginError').textContent = 'Lỗi kết nối!';
+        container.innerHTML=html;lazyLoad();return;
     }
+    const filtered=PRODUCTS.filter(p=>p.cat===currentCat);
+    if(!filtered.length){container.innerHTML='<div class="no-results">Không tìm thấy</div>';return;}
+    container.innerHTML=filtered.map(p=>renderCard(p)).join('');
+    lazyLoad();
 }
+function renderCard(p){return `<div class="product-card" onclick="openModal(${p.id})"><img class="prod-img" src="/static/logo.png" data-src="${p.img}" loading="lazy"><div class="prod-info"><div class="prod-name">${p.name}</div><div class="prod-price">${p.price.toLocaleString()}đ</div></div></div>`;}
+function lazyLoad(){requestAnimationFrame(()=>{document.querySelectorAll('.prod-img[data-src]').forEach(img=>{const src=img.dataset.src;const n=new Image();n.onload=()=>{img.src=src;img.classList.add('loaded');};n.onerror=()=>{img.src='/static/logo.png';img.classList.add('loaded');};n.src=src;});});}
 
-function logout() {
-    localStorage.removeItem('khi_pin');
-    staffInfo = null;
-    document.getElementById('loginScreen').classList.remove('hidden');
-    document.getElementById('appContainer').classList.remove('active');
-    document.getElementById('pinInput').value = '';
-    document.getElementById('loginError').textContent = '';
-}
-
-function showApp() {
-    document.getElementById('loginScreen').classList.add('hidden');
-    document.getElementById('appContainer').classList.add('active');
-    document.getElementById('staffDisplay').textContent = staffInfo.name;
-    initApp();
-}
-
-async function checkAuth() {
-    const pin = localStorage.getItem('khi_pin');
-    if (pin) {
-        try {
-            const res = await fetch('/api/verify_pin', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ pin })
-            });
-            const data = await res.json();
-            if (data.success) {
-                staffInfo = data.staff;
-                showApp();
-                return;
-            }
-        } catch (e) {}
+function openModal(id){
+    const p=PRODUCTS.find(x=>x.id===id);
+    currentItem={...p,qty:1,tops:[],notes:[],customNote:''};
+    excludeMode=false;excludedToppings=[];compensateToppings=[];selectedToppings=[];
+    document.getElementById('modalImg').src=p.img;
+    document.getElementById('modalImg').onerror=function(){this.src='/static/logo.png';};
+    document.getElementById('modalName').textContent=p.name;
+    document.getElementById('modalPrice').textContent=p.price.toLocaleString()+'đ';
+    document.getElementById('modalQty').textContent=1;
+    document.getElementById('customNote').value='';
+    document.getElementById('noteChips').innerHTML=NOTES.map(n=>`<div class="chip chip-note" onclick="toggleNote(this,'${n}')">${n}</div>`).join('');
+    
+    let toppings=[];
+    const label=document.getElementById('toppingLabel');
+    const compSection=document.getElementById('compensateSection');
+    
+    if(p.cat==='kotop'||p.cat==='topping'){
+        label.style.display='none';
+        document.getElementById('toppingChips').innerHTML='';
+        compSection.style.display='none';
+    }else if(p.cat==='traicay'){
+        toppings=TOPPINGS_FRUIT;
+        label.style.display='flex';
+    }else{
+        toppings=TOPPINGS_BASIC;
+        label.style.display='flex';
     }
-}
-
-function initApp() {
-    document.getElementById('categories').innerHTML = CATEGORIES.map((c, i) =>
-        `<button class="cat-btn${i === 0 ? ' active' : ''}" onclick="selectCat('${c.id}',this)">${c.name}</button>`
-    ).join('');
-    renderProducts();
-}
-
-const searchInput = document.getElementById('searchInput');
-const searchClear = document.getElementById('searchClear');
-searchInput.addEventListener('input', e => {
-    searchQuery = e.target.value.toLowerCase().trim();
-    searchClear.classList.toggle('show', searchQuery.length > 0);
-    renderProducts();
-});
-
-function clearSearch() {
-    searchInput.value = '';
-    searchQuery = '';
-    searchClear.classList.remove('show');
-    renderProducts();
-}
-
-function selectCat(id, btn) {
-    currentCat = id;
-    document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    clearSearch();
-    renderProducts();
-}
-
-function renderProducts() {
-    let filtered = PRODUCTS.filter(p => p.cat === currentCat);
-    if (searchQuery) filtered = PRODUCTS.filter(p => p.name.toLowerCase().includes(searchQuery));
-    if (!filtered.length) {
-        document.getElementById('products').innerHTML = '<div class="no-results">Không tìm thấy</div>';
-        return;
-    }
-    document.getElementById('products').innerHTML = filtered.map(p =>
-        `<div class="product-card" onclick="openModal(${p.id})">
-            <img class="prod-img" src="/static/logo.png" data-src="${p.img}" loading="lazy">
-            <div class="prod-info">
-                <div class="prod-name">${p.name}</div>
-                <div class="prod-price">${p.price.toLocaleString()}đ</div>
-            </div>
-        </div>`
-    ).join('');
-    requestAnimationFrame(() => {
-        document.querySelectorAll('.prod-img[data-src]').forEach(img => {
-            const src = img.dataset.src;
-            const n = new Image();
-            n.onload = () => { img.src = src; img.classList.add('loaded'); };
-            n.onerror = () => { img.src = '/static/logo.png'; img.classList.add('loaded'); };
-            n.src = src;
-        });
-    });
-}
-
-function openModal(id) {
-    const p = PRODUCTS.find(x => x.id === id);
-    currentItem = { ...p, qty: 1, tops: [], notes: [], customNote: '' };
-    
-    // Reset states
-    excludeMode = false;
-    excludedToppings = [];
-    compensateToppings = [];
-    selectedToppings = [];
-    
-    document.getElementById('modalImg').src = p.img;
-    document.getElementById('modalImg').onerror = function() { this.src = '/static/logo.png'; };
-    document.getElementById('modalName').textContent = p.name;
-    document.getElementById('modalPrice').textContent = p.price.toLocaleString() + 'đ';
-    document.getElementById('modalQty').textContent = 1;
-    document.getElementById('customNote').value = '';
-    
-    // Render notes
-    document.getElementById('noteChips').innerHTML = NOTES.map(n =>
-        `<div class="chip chip-note" onclick="toggleNote(this,'${n}')">${n}</div>`
-    ).join('');
-    
-    // Determine toppings based on category
-    let toppings = [];
-    const label = document.getElementById('toppingLabel');
-    const compensateSection = document.getElementById('compensateSection');
-    
-    if (p.cat === 'traicay') {
-        toppings = TOPPINGS_FRUIT;
-        label.style.display = 'flex';
-    } else if (p.cat === 'topping') {
-        label.style.display = 'none';
-        document.getElementById('toppingChips').innerHTML = '';
-        compensateSection.style.display = 'none';
-    } else {
-        toppings = TOPPINGS_BASIC;
-        label.style.display = 'flex';
-    }
-    
-    currentToppings = toppings;
-    
-    // Reset exclude toggle
+    currentToppings=toppings;
     document.getElementById('excludeToggle').classList.remove('active');
-    compensateSection.style.display = 'none';
-    
-    // Render toppings
-    if (toppings.length) {
-        renderToppingChips();
-    }
-    
+    compSection.style.display='none';
+    if(toppings.length)renderToppingChips();
     updateModalTotal();
     document.getElementById('modalOverlay').classList.add('show');
 }
-
-function renderToppingChips() {
-    const container = document.getElementById('toppingChips');
-    container.innerHTML = currentToppings.map(t => {
-        let classes = 'chip';
-        if (excludeMode) {
-            classes += ' exclude';
-            if (excludedToppings.includes(t)) {
-                classes += ' active';
-            }
-        } else {
-            if (selectedToppings.includes(t)) {
-                classes += ' active';
-            }
-        }
-        return `<div class="${classes}" onclick="toggleTopping(this,'${t}')">${t}</div>`;
+function renderToppingChips(){
+    const container=document.getElementById('toppingChips');
+    container.innerHTML=currentToppings.map(t=>{
+        let cls='chip';
+        if(excludeMode){cls+=' exclude';if(excludedToppings.includes(t))cls+=' active';}
+        else{if(selectedToppings.includes(t))cls+=' active';}
+        return `<div class="${cls}" onclick="toggleTopping(this,'${t}')">${t}</div>`;
     }).join('');
 }
-
-function renderCompensateChips() {
-    const container = document.getElementById('compensateChips');
-    const maxCompensate = excludedToppings.length;
-    const currentCount = compensateToppings.length;
-    
-    // Filter out excluded toppings from available compensate options
-    const availableToppings = currentToppings.filter(t => !excludedToppings.includes(t));
-    
-    container.innerHTML = availableToppings.map(t => {
-        let classes = 'chip compensate';
-        const isSelected = compensateToppings.includes(t);
-        const isDisabled = !isSelected && currentCount >= maxCompensate;
-        
-        if (isSelected) {
-            classes += ' active';
-        }
-        if (isDisabled) {
-            classes += ' disabled';
-        }
-        return `<div class="${classes}" onclick="toggleCompensate(this,'${t}')">${t}</div>`;
+function renderCompensateChips(){
+    const container=document.getElementById('compensateChips');
+    const max=excludedToppings.length,cur=compensateToppings.length;
+    const avail=currentToppings.filter(t=>!excludedToppings.includes(t));
+    container.innerHTML=avail.map(t=>{
+        let cls='chip compensate';
+        const sel=compensateToppings.includes(t);
+        const dis=!sel&&cur>=max;
+        if(sel)cls+=' active';
+        if(dis)cls+=' disabled';
+        return `<div class="${cls}" onclick="toggleCompensate(this,'${t}')">${t}</div>`;
     }).join('');
-    
-    document.getElementById('compensateCount').textContent = `Đã chọn ${currentCount}/${maxCompensate}`;
+    document.getElementById('compensateCount').textContent=`Đã chọn ${cur}/${max}`;
 }
-
-function closeModal(e) {
-    if (!e || e.target.id === 'modalOverlay' || e.target.classList.contains('modal-close')) {
-        document.getElementById('modalOverlay').classList.remove('show');
-    }
-}
-
-function adjustQty(d) {
-    if (currentItem.qty + d > 0) {
-        currentItem.qty += d;
-        document.getElementById('modalQty').textContent = currentItem.qty;
-        updateModalTotal();
-    }
-}
-
-function toggleNote(el, note) {
-    el.classList.toggle('active');
-    if (el.classList.contains('active')) {
-        currentItem.notes.push(note);
-    } else {
-        currentItem.notes = currentItem.notes.filter(n => n !== note);
-    }
-}
-
-function toggleExcludeMode() {
-    excludeMode = !excludeMode;
-    document.getElementById('excludeToggle').classList.toggle('active', excludeMode);
-    
-    if (!excludeMode) {
-        // Reset when turning off exclude mode
-        excludedToppings = [];
-        compensateToppings = [];
-        selectedToppings = [];
-        document.getElementById('compensateSection').style.display = 'none';
-    }
-    
+function closeModal(e){if(!e||e.target.id==='modalOverlay'||e.target.classList.contains('modal-close'))document.getElementById('modalOverlay').classList.remove('show');}
+function adjustQty(d){if(currentItem.qty+d>0){currentItem.qty+=d;document.getElementById('modalQty').textContent=currentItem.qty;updateModalTotal();}}
+function toggleNote(el,note){el.classList.toggle('active');if(el.classList.contains('active'))currentItem.notes.push(note);else currentItem.notes=currentItem.notes.filter(n=>n!==note);}
+function toggleExcludeMode(){
+    excludeMode=!excludeMode;
+    document.getElementById('excludeToggle').classList.toggle('active',excludeMode);
+    if(!excludeMode){excludedToppings=[];compensateToppings=[];selectedToppings=[];document.getElementById('compensateSection').style.display='none';}
     renderToppingChips();
 }
-
-function toggleTopping(el, name) {
-    if (excludeMode) {
-        // Exclude mode: toggle excluded toppings
-        if (excludedToppings.includes(name)) {
-            excludedToppings = excludedToppings.filter(t => t !== name);
-            // Also remove any compensate that exceeds the new limit
-            while (compensateToppings.length > excludedToppings.length) {
-                compensateToppings.pop();
-            }
-        } else {
-            excludedToppings.push(name);
-        }
-        
-        // Show/hide compensate section
-        const compensateSection = document.getElementById('compensateSection');
-        if (excludedToppings.length > 0) {
-            compensateSection.style.display = 'block';
-            renderCompensateChips();
-        } else {
-            compensateSection.style.display = 'none';
-            compensateToppings = [];
-        }
-        
+function toggleTopping(el,name){
+    if(excludeMode){
+        if(excludedToppings.includes(name)){excludedToppings=excludedToppings.filter(t=>t!==name);while(compensateToppings.length>excludedToppings.length)compensateToppings.pop();}
+        else{excludedToppings.push(name);}
+        const compSection=document.getElementById('compensateSection');
+        if(excludedToppings.length>0){compSection.style.display='block';renderCompensateChips();}
+        else{compSection.style.display='none';compensateToppings=[];}
         renderToppingChips();
-    } else {
-        // Normal mode: select specific toppings (only these)
-        if (selectedToppings.includes(name)) {
-            selectedToppings = selectedToppings.filter(t => t !== name);
-        } else {
-            selectedToppings.push(name);
-        }
+    }else{
+        if(selectedToppings.includes(name))selectedToppings=selectedToppings.filter(t=>t!==name);
+        else selectedToppings.push(name);
         renderToppingChips();
     }
 }
-
-function toggleCompensate(el, name) {
-    if (el.classList.contains('disabled')) return;
-    
-    if (compensateToppings.includes(name)) {
-        compensateToppings = compensateToppings.filter(t => t !== name);
-    } else {
-        if (compensateToppings.length < excludedToppings.length) {
-            compensateToppings.push(name);
-        }
-    }
-    
+function toggleCompensate(el,name){
+    if(el.classList.contains('disabled'))return;
+    if(compensateToppings.includes(name))compensateToppings=compensateToppings.filter(t=>t!==name);
+    else if(compensateToppings.length<excludedToppings.length)compensateToppings.push(name);
     renderCompensateChips();
 }
-
-function updateModalTotal() {
-    document.getElementById('modalTotal').textContent = (currentItem.price * currentItem.qty).toLocaleString() + 'đ';
-}
-
-function addToCart() {
-    currentItem.customNote = document.getElementById('customNote').value.trim();
-    
-    // Build tops array based on mode
-    let tops = [];
-    
-    if (excludeMode && excludedToppings.length > 0) {
-        // Add excluded toppings with "Không" prefix
-        excludedToppings.forEach(t => {
-            tops.push('Không ' + t);
-        });
-        // Add compensate toppings with "Bù" prefix
-        compensateToppings.forEach(t => {
-            tops.push('Bù ' + t);
-        });
-    } else if (selectedToppings.length > 0) {
-        // Normal mode: only selected toppings
-        tops = [...selectedToppings];
+function updateModalTotal(){document.getElementById('modalTotal').textContent=(currentItem.price*currentItem.qty).toLocaleString()+'đ';}
+function addToCart(){
+    currentItem.customNote=document.getElementById('customNote').value.trim();
+    let tops=[];
+    if(excludeMode&&excludedToppings.length>0){
+        excludedToppings.forEach(t=>tops.push('Không '+t));
+        compensateToppings.forEach(t=>tops.push('Bù '+t));
+    }else if(selectedToppings.length>0){
+        tops=[...selectedToppings];
     }
-    
-    currentItem.tops = tops;
-    
-    cart.push({ ...currentItem, cartId: Date.now() });
+    currentItem.tops=tops;
+    cart.push({...currentItem,cartId:Date.now()});
     document.getElementById('modalOverlay').classList.remove('show');
-    updateCartBar();
-    showToast('Đã thêm vào giỏ');
+    updateCartBar();showToast('Đã thêm vào giỏ');
 }
-
-function showToast(text) {
-    const toast = document.getElementById('toast');
-    document.getElementById('toastText').textContent = text;
-    toast.classList.add('show');
-    setTimeout(() => toast.classList.remove('show'), 2000);
+function showToast(text){const toast=document.getElementById('toast');document.getElementById('toastText').textContent=text;toast.classList.add('show');setTimeout(()=>toast.classList.remove('show'),2000);}
+function updateCartBar(){
+    const bar=document.getElementById('cartBar');
+    if(cart.length>0){bar.classList.add('show');document.getElementById('cartCount').textContent=cart.reduce((s,i)=>s+i.qty,0);document.getElementById('cartTotal').textContent=cart.reduce((s,i)=>s+(i.price*i.qty),0).toLocaleString()+'đ';}
+    else{bar.classList.remove('show');}
 }
-
-function updateCartBar() {
-    const bar = document.getElementById('cartBar');
-    if (cart.length > 0) {
-        bar.classList.add('show');
-        document.getElementById('cartCount').textContent = cart.reduce((s, i) => s + i.qty, 0);
-        document.getElementById('cartTotal').textContent = cart.reduce((s, i) => s + (i.price * i.qty), 0).toLocaleString() + 'đ';
-    } else {
-        bar.classList.remove('show');
-    }
-}
-
-function openCartModal() {
-    renderCartItems();
-    document.getElementById('cartModalOverlay').classList.add('show');
-}
-
-function closeCartModal(e) {
-    if (!e || e.target.id === 'cartModalOverlay') {
-        document.getElementById('cartModalOverlay').classList.remove('show');
-    }
-}
-
-function renderCartItems() {
-    const body = document.getElementById('cartBody');
-    if (!cart.length) {
-        body.innerHTML = '<div class="cart-empty">🛒 Giỏ hàng trống</div>';
-        document.getElementById('cartSummaryTotal').textContent = '0đ';
-        return;
-    }
-    body.innerHTML = cart.map((item, i) => {
-        let d = [];
-        if (item.notes.length) d.push(item.notes.join(', '));
-        if (item.tops.length) d.push(item.tops.join(', '));
-        if (item.customNote) d.push('📝 ' + item.customNote);
-        return `<div class="cart-item">
-            <img class="cart-item-img" src="${item.img}" onerror="this.src='/static/logo.png'">
-            <div class="cart-item-info">
-                <div class="cart-item-name">${item.name}</div>
-                ${d.length ? '<div class="cart-item-detail">' + d.join(' • ') + '</div>' : ''}
-                <div class="cart-item-bottom">
-                    <div class="cart-item-price">${(item.price * item.qty).toLocaleString()}đ</div>
-                    <div class="cart-item-qty">
-                        <button class="cart-qty-btn ${item.qty === 1 ? 'delete' : ''}" onclick="updateCartItem(${i},-1)">${item.qty === 1 ? '🗑️' : '−'}</button>
-                        <span class="cart-item-num">${item.qty}</span>
-                        <button class="cart-qty-btn" onclick="updateCartItem(${i},1)">+</button>
-                    </div>
-                </div>
-            </div>
-        </div>`;
+function openCartModal(){renderCartItems();document.getElementById('cartModalOverlay').classList.add('show');}
+function closeCartModal(e){if(!e||e.target.id==='cartModalOverlay')document.getElementById('cartModalOverlay').classList.remove('show');}
+function renderCartItems(){
+    const body=document.getElementById('cartBody');
+    if(!cart.length){body.innerHTML='<div class="cart-empty">🛒 Giỏ hàng trống</div>';document.getElementById('cartSummaryTotal').textContent='0đ';return;}
+    body.innerHTML=cart.map((item,i)=>{
+        let d=[];if(item.notes.length)d.push(item.notes.join(', '));if(item.tops.length)d.push(item.tops.join(', '));if(item.customNote)d.push('📝 '+item.customNote);
+        return `<div class="cart-item"><img class="cart-item-img" src="${item.img}" onerror="this.src='/static/logo.png'"><div class="cart-item-info"><div class="cart-item-name">${item.name}</div>${d.length?'<div class="cart-item-detail">'+d.join(' • ')+'</div>':''}<div class="cart-item-bottom"><div class="cart-item-price">${(item.price*item.qty).toLocaleString()}đ</div><div class="cart-item-qty"><button class="cart-qty-btn ${item.qty===1?'delete':''}" onclick="updateCartItem(${i},-1)">${item.qty===1?'🗑️':'−'}</button><span class="cart-item-num">${item.qty}</span><button class="cart-qty-btn" onclick="updateCartItem(${i},1)">+</button></div></div></div></div>`;
     }).join('');
-    document.getElementById('cartSummaryTotal').textContent = cart.reduce((s, i) => s + (i.price * i.qty), 0).toLocaleString() + 'đ';
+    document.getElementById('cartSummaryTotal').textContent=cart.reduce((s,i)=>s+(i.price*i.qty),0).toLocaleString()+'đ';
 }
-
-function updateCartItem(i, d) {
-    if (cart[i].qty + d <= 0) {
-        cart.splice(i, 1);
-    } else {
-        cart[i].qty += d;
-    }
-    renderCartItems();
-    updateCartBar();
+function updateCartItem(i,d){if(cart[i].qty+d<=0)cart.splice(i,1);else cart[i].qty+=d;renderCartItems();updateCartBar();}
+function clearCart(){if(cart.length&&confirm('Xóa tất cả?')){cart=[];renderCartItems();updateCartBar();}}
+async function submitOrder(){
+    if(!cart.length)return showToast('Giỏ hàng trống!');
+    const pin=localStorage.getItem('khi_pin');if(!pin||!staffInfo){showToast('Phiên hết hạn!');logout();return;}
+    const data={order_id:'KHI'+orderId,customer:document.getElementById('customerName').value||'Khách lẻ',staff_name:staffInfo.name,staff_pin:pin,items:cart.map(i=>({name:i.name,price:i.price,qty:i.qty,tops:i.tops,notes:i.customNote?[...i.notes,i.customNote]:i.notes})),total:cart.reduce((s,i)=>s+(i.price*i.qty),0)};
+    const btn=document.getElementById('submitBtn');btn.innerHTML='<span class="loading"></span>Đang gửi...';btn.disabled=true;
+    try{
+        const res=await fetch('/api/submit_order',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+        const result=await res.json();
+        if(result.success){showToast('✅ Đã gửi order!');cart=[];updateCartBar();document.getElementById('cartModalOverlay').classList.remove('show');document.getElementById('customerName').value='';document.getElementById('orderNum').textContent='Đơn #'+(Math.floor(Math.random()*900)+100);}
+        else{showToast('❌ '+result.message);}
+    }catch(err){showToast('❌ Không thể kết nối!');}
+    btn.innerHTML='GỬI BẾP 🚀';btn.disabled=false;
 }
-
-function clearCart() {
-    if (cart.length && confirm('Xóa tất cả?')) {
-        cart = [];
-        renderCartItems();
-        updateCartBar();
-    }
-}
-
-async function submitOrder() {
-    if (!cart.length) return showToast('Giỏ hàng trống!');
-    const pin = localStorage.getItem('khi_pin');
-    if (!pin || !staffInfo) {
-        showToast('Phiên hết hạn!');
-        logout();
-        return;
-    }
-    
-    const data = {
-        order_id: 'KHI' + orderId,
-        customer: document.getElementById('customerName').value || 'Khách lẻ',
-        staff_name: staffInfo.name,
-        staff_pin: pin,
-        items: cart.map(i => ({
-            name: i.name,
-            price: i.price,
-            qty: i.qty,
-            tops: i.tops,
-            notes: i.customNote ? [...i.notes, i.customNote] : i.notes
-        })),
-        total: cart.reduce((s, i) => s + (i.price * i.qty), 0)
-    };
-    
-    const btn = document.getElementById('submitBtn');
-    btn.innerHTML = '<span class="loading"></span>Đang gửi...';
-    btn.disabled = true;
-    
-    try {
-        const res = await fetch('/api/submit_order', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        });
-        const result = await res.json();
-        if (result.success) {
-            showToast('✅ Đã gửi order!');
-            cart = [];
-            updateCartBar();
-            document.getElementById('cartModalOverlay').classList.remove('show');
-            document.getElementById('customerName').value = '';
-            document.getElementById('orderNum').textContent = 'Đơn #' + (Math.floor(Math.random() * 900) + 100);
-        } else {
-            showToast('❌ ' + result.message);
-        }
-    } catch (err) {
-        showToast('❌ Không thể kết nối!');
-    }
-    
-    btn.innerHTML = 'GỬI BẾP 🚀';
-    btn.disabled = false;
-}
-
 checkAuth();
 </script>
 </body>
