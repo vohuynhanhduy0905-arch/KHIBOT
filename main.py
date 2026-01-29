@@ -755,3 +755,149 @@ def get_review():
         "Trà sữa đậm vị, trân châu dẻo. Sẽ ghé lại!"
     ])
     return {"content": content}
+
+
+# ==========================================
+# API CHO KHI-POS (ĐỒNG BỘ MENU)
+# ==========================================
+
+# Lưu trữ order chờ xử lý từ KHIBOT -> KHI-POS
+pending_pos_orders = []
+
+@app.get("/api/menu")
+def get_menu():
+    """API để KHI-POS lấy menu từ KHIBOT"""
+    # Menu data - giống với webapp_standalone.html
+    categories = [
+        {"id": "trasua", "name": "Trà Sữa", "icon": "🧋"},
+        {"id": "traicay", "name": "Trà Trái Cây", "icon": "🍹"},
+        {"id": "macchiato", "name": "Macchiato", "icon": "🥛"},
+        {"id": "dacbiet", "name": "Đặc Biệt", "icon": "⭐"},
+        {"id": "topping", "name": "Topping Thêm", "icon": "🍡"},
+        {"id": "kotop", "name": "KO TOP", "icon": "🚫"}
+    ]
+    
+    products = [
+        # Trà Sữa
+        {"id": 1, "cat": "trasua", "name": "Trà Sữa Truyền Thống", "price": 25000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678320/ts-truyenthong_umocuv.jpg"},
+        {"id": 2, "cat": "trasua", "name": "Trà Sữa Matcha", "price": 25000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678307/ts-matcha_gobwvh.jpg"},
+        {"id": 3, "cat": "trasua", "name": "Trà Sữa Caramel", "price": 25000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678299/ts-caramel_u6vaqg.jpg"},
+        {"id": 4, "cat": "trasua", "name": "Trà Sữa Ô Long", "price": 25000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678320/ts-olong_kn2h1c.jpg"},
+        {"id": 5, "cat": "trasua", "name": "Trà Sữa Chocolate", "price": 25000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678306/ts-chocolate_kuosxw.jpg"},
+        {"id": 6, "cat": "trasua", "name": "Trà Sữa Đào", "price": 25000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678306/ts-dao_jovzy8.jpg"},
+        # Trà Trái Cây
+        {"id": 10, "cat": "traicay", "name": "Trà Đác Dâu Tằm", "price": 27000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678281/tc-dautam_lifxht.jpg"},
+        {"id": 11, "cat": "traicay", "name": "Trà Đác Thơm", "price": 27000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678280/tc-dacthom_s91uyt.jpg"},
+        {"id": 12, "cat": "traicay", "name": "Trà Ổi Hồng", "price": 27000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678290/tc-oihong_utnw5w.jpg"},
+        {"id": 13, "cat": "traicay", "name": "Trà Nhiệt Đới", "price": 27000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678289/tc-nhietdoi_qzmyyi.jpg"},
+        {"id": 14, "cat": "traicay", "name": "Trà Táo Xanh", "price": 27000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678291/tc-taoxanh_ljrgr1.jpg"},
+        {"id": 15, "cat": "traicay", "name": "Trà Dưa Lưới", "price": 27000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678281/tc-dualuoi_frskc0.jpg"},
+        {"id": 16, "cat": "traicay", "name": "Trà Mãng Cầu", "price": 27000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678282/tc-mangcau_bff6ir.jpg"},
+        {"id": 17, "cat": "traicay", "name": "Trà Cóc Hạt Đác", "price": 27000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678276/tc-cochatdac_lat80f.jpg"},
+        # Macchiato
+        {"id": 20, "cat": "macchiato", "name": "Trà Đào Macchiato", "price": 25000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678264/mc-dao_arsc8z.jpg"},
+        {"id": 21, "cat": "macchiato", "name": "Trà Dâu Macchiato", "price": 25000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678266/mc-dau_ythwfg.jpg"},
+        {"id": 22, "cat": "macchiato", "name": "Trà Vải Macchiato", "price": 25000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678273/mc-vai_y05t2z.jpg"},
+        {"id": 23, "cat": "macchiato", "name": "Hồng Trà Macchiato", "price": 25000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678268/mc-hongtra_dwjbd2.jpg"},
+        {"id": 24, "cat": "macchiato", "name": "Ô Long Macchiato", "price": 25000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678270/mc-olong_sqykw6.jpg"},
+        {"id": 25, "cat": "macchiato", "name": "Trà Sen Macchiato", "price": 25000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678271/mc-sen_kco8x7.jpg"},
+        # Đặc Biệt
+        {"id": 30, "cat": "dacbiet", "name": "Trà Sủi", "price": 25000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769679055/Tr%C3%A0_%C4%90%C3%A1c_D%C3%A2u_T%E1%BA%B1m_vxk6nj.jpg"},
+        {"id": 31, "cat": "dacbiet", "name": "Sữa Tươi Trân Châu Đ.Đ", "price": 27000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678262/db-suatuoi_ymftil.jpg"},
+        {"id": 32, "cat": "dacbiet", "name": "Hồng Trà Latte", "price": 27000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678258/db-hongtralatte_cko07b.jpg"},
+        {"id": 33, "cat": "dacbiet", "name": "Matcha Latte", "price": 27000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678261/db-matchalatte_em8slk.jpg"},
+        # Topping
+        {"id": 100, "cat": "topping", "name": "Thêm Trân Châu", "price": 5000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678298/tp-tranchau_ff3k5o.jpg"},
+        {"id": 101, "cat": "topping", "name": "Thêm Củ Năng", "price": 5000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678248/8_tikfnv.jpg"},
+        {"id": 102, "cat": "topping", "name": "Thêm Phô Mai", "price": 5000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678247/7_pavlgu.jpg"},
+        {"id": 103, "cat": "topping", "name": "Thêm Rau Câu", "price": 5000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769677875/3_davt5n.jpg"},
+        {"id": 104, "cat": "topping", "name": "Thêm Khúc Bạch", "price": 5000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769677876/4_fx9ojc.jpg"},
+        {"id": 105, "cat": "topping", "name": "Thêm Sương Sáo", "price": 5000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769677875/1_uuksk1.jpg"},
+        {"id": 106, "cat": "topping", "name": "Thêm Thạch Đào", "price": 5000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678030/6_ux0ytb.jpg"},
+        {"id": 107, "cat": "topping", "name": "Thêm Flan Trứng", "price": 5000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769677875/2_lqjdoz.jpg"},
+        {"id": 108, "cat": "topping", "name": "Thêm Ngọc Trai", "price": 5000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769677889/5_wy4gyz.jpg"},
+        {"id": 109, "cat": "topping", "name": "Thêm Khoai Dẻo", "price": 5000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678249/9_klh8kn.jpg"},
+        {"id": 110, "cat": "topping", "name": "Thêm Đác Thơm", "price": 10000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678252/13_fsntwx.jpg"},
+        {"id": 111, "cat": "topping", "name": "Thêm Đác Dâu Tằm", "price": 10000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678250/12_yjvbsp.jpg"},
+        {"id": 112, "cat": "topping", "name": "Thêm Trái Cây Nhiệt Đới", "price": 10000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678251/10_oqpadz.jpg"},
+        {"id": 113, "cat": "topping", "name": "Thêm Táo Xanh", "price": 10000, "img": "/static/logo.png"},
+        {"id": 114, "cat": "topping", "name": "Thêm Dưa Lưới", "price": 10000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678257/16_zirfjx.jpg"},
+        {"id": 115, "cat": "topping", "name": "Thêm Ổi Hồng", "price": 10000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678256/15_mwtccy.jpg"},
+        {"id": 116, "cat": "topping", "name": "Thêm Mãng Cầu", "price": 10000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678255/14_btqjzs.jpg"},
+        # KO TOPPING - Trà Sữa
+        {"id": 200, "cat": "kotop", "subcat": "trasua", "name": "TS Truyền Thống Ko Topping", "price": 19000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678320/ts-truyenthong_umocuv.jpg"},
+        {"id": 201, "cat": "kotop", "subcat": "trasua", "name": "TS Matcha Ko Topping", "price": 19000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678307/ts-matcha_gobwvh.jpg"},
+        {"id": 202, "cat": "kotop", "subcat": "trasua", "name": "TS Caramel Ko Topping", "price": 19000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678299/ts-caramel_u6vaqg.jpg"},
+        {"id": 203, "cat": "kotop", "subcat": "trasua", "name": "TS Ô Long Ko Topping", "price": 19000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678320/ts-olong_kn2h1c.jpg"},
+        {"id": 204, "cat": "kotop", "subcat": "trasua", "name": "TS Chocolate Ko Topping", "price": 19000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678306/ts-chocolate_kuosxw.jpg"},
+        {"id": 205, "cat": "kotop", "subcat": "trasua", "name": "TS Đào Ko Topping", "price": 19000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678306/ts-dao_jovzy8.jpg"},
+        # KO TOPPING - Macchiato
+        {"id": 210, "cat": "kotop", "subcat": "macchiato", "name": "Trà Đào Ko Topping", "price": 19000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678264/mc-dao_arsc8z.jpg"},
+        {"id": 211, "cat": "kotop", "subcat": "macchiato", "name": "Trà Dâu Ko Topping", "price": 19000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678266/mc-dau_ythwfg.jpg"},
+        {"id": 212, "cat": "kotop", "subcat": "macchiato", "name": "Trà Vải Ko Topping", "price": 19000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678273/mc-vai_y05t2z.jpg"},
+        {"id": 213, "cat": "kotop", "subcat": "macchiato", "name": "Hồng Trà Ko Topping", "price": 19000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678268/mc-hongtra_dwjbd2.jpg"},
+        {"id": 214, "cat": "kotop", "subcat": "macchiato", "name": "Ô Long Ko Topping", "price": 19000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678270/mc-olong_sqykw6.jpg"},
+        {"id": 215, "cat": "kotop", "subcat": "macchiato", "name": "Trà Sen Ko Topping", "price": 19000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678271/mc-sen_kco8x7.jpg"},
+        # KO TOPPING - Đặc Biệt
+        {"id": 220, "cat": "kotop", "subcat": "dacbiet", "name": "Trà Sủi Ko Topping", "price": 19000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769679055/Tr%C3%A0_%C4%90%C3%A1c_D%C3%A2u_T%E1%BA%B1m_vxk6nj.jpg"},
+        {"id": 221, "cat": "kotop", "subcat": "dacbiet", "name": "Hồng Trà Latte Ko Topping", "price": 22000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678258/db-hongtralatte_cko07b.jpg"},
+        {"id": 222, "cat": "kotop", "subcat": "dacbiet", "name": "Matcha Latte Ko Topping", "price": 22000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678261/db-matchalatte_em8slk.jpg"},
+        # KO TOPPING - Trái Cây
+        {"id": 230, "cat": "kotop", "subcat": "traicay", "name": "Trà Đác Dâu Tằm Ko Topping", "price": 19000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678281/tc-dautam_lifxht.jpg"},
+        {"id": 231, "cat": "kotop", "subcat": "traicay", "name": "Trà Đác Thơm Ko Topping", "price": 19000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678280/tc-dacthom_s91uyt.jpg"},
+        {"id": 232, "cat": "kotop", "subcat": "traicay", "name": "Trà Ổi Hồng Ko Topping", "price": 19000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678290/tc-oihong_utnw5w.jpg"},
+        {"id": 233, "cat": "kotop", "subcat": "traicay", "name": "Trà Nhiệt Đới Ko Topping", "price": 19000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678289/tc-nhietdoi_qzmyyi.jpg"},
+        {"id": 234, "cat": "kotop", "subcat": "traicay", "name": "Trà Táo Xanh Ko Topping", "price": 19000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678291/tc-taoxanh_ljrgr1.jpg"},
+        {"id": 235, "cat": "kotop", "subcat": "traicay", "name": "Trà Dưa Lưới Ko Topping", "price": 19000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678281/tc-dualuoi_frskc0.jpg"},
+        {"id": 236, "cat": "kotop", "subcat": "traicay", "name": "Trà Mãng Cầu Ko Topping", "price": 19000, "img": "/static/logo.png"},
+        {"id": 237, "cat": "kotop", "subcat": "traicay", "name": "Trà Cóc Hạt Đác Ko Topping", "price": 19000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678276/tc-cochatdac_lat80f.jpg"}
+    ]
+    
+    toppings = [
+        {"name": "Trân Châu", "price": 5000},
+        {"name": "Củ Năng", "price": 5000},
+        {"name": "Phô Mai", "price": 5000},
+        {"name": "Rau Câu", "price": 5000},
+        {"name": "Khúc Bạch", "price": 5000},
+        {"name": "Sương Sáo", "price": 5000},
+        {"name": "Thạch Đào", "price": 5000},
+        {"name": "Flan Trứng", "price": 5000},
+        {"name": "Ngọc Trai", "price": 5000},
+        {"name": "Khoai Dẻo", "price": 5000},
+        {"name": "Đác Thơm", "price": 10000},
+        {"name": "Đác Dâu Tằm", "price": 10000},
+        {"name": "Trái Cây Nhiệt Đới", "price": 10000},
+        {"name": "Táo Xanh", "price": 10000},
+        {"name": "Dưa Lưới", "price": 10000},
+        {"name": "Ổi Hồng", "price": 10000},
+        {"name": "Mãng Cầu", "price": 10000}
+    ]
+    
+    return {
+        "success": True,
+        "menu": {
+            "categories": categories,
+            "products": products,
+            "toppings": toppings
+        }
+    }
+
+
+@app.get("/api/pending_orders")
+def get_pending_orders():
+    """API để KHI-POS lấy danh sách order chờ xử lý"""
+    return {"orders": pending_pos_orders}
+
+
+@app.post("/api/order_accepted")
+async def order_accepted(request: Request):
+    """API khi KHI-POS đã nhận order"""
+    global pending_pos_orders
+    try:
+        data = await request.json()
+        order_id = data.get("order_id")
+        # Xóa order khỏi pending list
+        pending_pos_orders = [o for o in pending_pos_orders if o.get("order_id") != order_id]
+        return {"success": True, "message": f"Order {order_id} đã được xử lý"}
+    except Exception as e:
+        return {"success": False, "message": str(e)}
