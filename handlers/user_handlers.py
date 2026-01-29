@@ -19,7 +19,7 @@ from config import (
     DAILY_CHECKIN_REWARD, STREAK_7_BONUS
 )
 from database import SessionLocal, Employee, ShopLog
-from staff_sheet import get_staff_by_telegram, register_staff, update_staff_emoji
+from staff_sheet import get_staff_by_telegram, get_staff_by_pin, register_staff, update_staff_emoji
 from utils import (
     get_rank_info, get_random_gift, create_card_image, 
     generate_streak_display, SPAM_TRACKER
@@ -117,8 +117,12 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         emp = db.query(Employee).filter(Employee.telegram_id == str(user.id)).first()
         
+        is_new_user = False
+        pin = None
+        
         if not emp:
             # Chưa có trong DB → Tạo mới
+            is_new_user = True
             used_emojis = [e.emoji for e in db.query(Employee).all() if e.emoji]
             available = [e for e in EMOJI_POOL if e not in used_emojis]
             if not available:
@@ -129,17 +133,44 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             db.add(emp)
             db.commit()
             
-            # Lưu emoji lên Sheet để backup
+            # Đăng ký lên Sheet và lấy PIN
             try:
-                register_staff(user.full_name, "", str(user.id))
+                success, message, pin, sheet_emoji = register_staff(user.full_name, "", str(user.id))
+                if sheet_emoji:
+                    emp.emoji = sheet_emoji
+                    db.commit()
             except Exception as e:
                 print(f"Lỗi ghi Sheet: {e}")
+        else:
+            # Đã có trong DB → Lấy PIN từ Sheet
+            try:
+                staff_data = get_staff_by_telegram(str(user.id))
+                if staff_data:
+                    pin = staff_data.get("PIN")
+            except Exception as e:
+                print(f"Lỗi lấy PIN: {e}")
         
-        msg = (
-            f"Chào <b>{emp.name}</b> {emp.emoji}!\n"
-            f"Chúc một ngày làm việc năng suất.\n"
-            f"👇 <i>Chọn menu bên dưới:</i>"
-        )
+        if is_new_user and pin:
+            # Người dùng mới → Hiển thị chào mừng + PIN
+            msg = (
+                f"🎉 <b>CHÀO MỪNG NHÂN VIÊN MỚI!</b>\n"
+                f"━━━━━━━━━━━━━━━━━━━━\n"
+                f"👤 Tên: <b>{emp.name}</b> {emp.emoji}\n"
+                f"🔑 Mã PIN: <b>{pin}</b>\n"
+                f"━━━━━━━━━━━━━━━━━━━━\n"
+                f"💡 <i>Dùng PIN này để đăng nhập Order!</i>\n\n"
+                f"👇 <i>Chọn menu bên dưới:</i>"
+            )
+        else:
+            # Người dùng cũ
+            msg = (
+                f"Chào <b>{emp.name}</b> {emp.emoji}!\n"
+                f"Chúc một ngày làm việc năng suất.\n"
+            )
+            if pin:
+                msg += f"🔑 Mã PIN: <b>{pin}</b>\n\n"
+            msg += f"👇 <i>Chọn menu bên dưới:</i>"
+        
         await update.message.reply_text(msg, reply_markup=get_main_menu(), parse_mode="HTML")
         
     except Exception as e:

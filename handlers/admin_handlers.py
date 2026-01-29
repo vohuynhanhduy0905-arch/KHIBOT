@@ -42,7 +42,7 @@ async def dangky_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ SĐT không hợp lệ! Vui lòng nhập số điện thoại đúng.")
         return
     
-    success, message, pin = register_staff(name, phone, str(user.id))
+    success, message, pin, emoji = register_staff(name, phone, str(user.id))
     
     if success:
         await update.message.reply_text(
