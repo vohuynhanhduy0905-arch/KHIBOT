@@ -295,8 +295,8 @@ const PRODUCTS = [
 
 let cart=[],currentItem=null,currentCat='trasua',excludeMode=false,searchQuery='',staffInfo=null;
 let currentToppings=[];
-let excludedList=[];  // Track những topping đã loại
-let compensateList=[]; // Track những topping bù
+let excludedList=[];
+let compensateList=[];
 const orderId=Math.floor(Math.random()*900)+100;
 document.getElementById('orderNum').textContent='Đơn #'+orderId;
 
@@ -348,6 +348,7 @@ function lazyLoad(){requestAnimationFrame(()=>{document.querySelectorAll('.prod-
 
 function openModal(id){
     const p=PRODUCTS.find(x=>x.id===id);
+    // tops giờ là array of objects {name, price}
     currentItem={...p,qty:1,tops:[],notes:[],customNote:''};
     excludeMode=false;
     excludedList=[];
@@ -383,17 +384,17 @@ function toggleExcludeMode(){
 function toggleTopping(el,name){
     el.classList.toggle('active');
     if(excludeMode){
-        // Chế độ loại bỏ
+        // Chế độ loại bỏ - lưu dạng object {name, price:0}
         if(el.classList.contains('active')){
             excludedList.push(name);
-            currentItem.tops.push('Không '+name);
+            currentItem.tops.push({name:'Không '+name,price:0});
         }else{
             excludedList=excludedList.filter(t=>t!==name);
-            currentItem.tops=currentItem.tops.filter(t=>t!=='Không '+name);
+            currentItem.tops=currentItem.tops.filter(t=>t.name!=='Không '+name);
             // Giảm compensate nếu vượt quá
             while(compensateList.length>excludedList.length){
                 const removed=compensateList.pop();
-                currentItem.tops=currentItem.tops.filter(t=>t!=='Bù '+removed);
+                currentItem.tops=currentItem.tops.filter(t=>t.name!=='Bù '+removed);
             }
         }
         // Show/hide compensate section
@@ -404,11 +405,11 @@ function toggleTopping(el,name){
             document.getElementById('compensateSection').style.display='none';
         }
     }else{
-        // Chế độ bình thường - GIỮ NGUYÊN LOGIC CŨ
+        // Chế độ bình thường - lưu dạng object {name, price:0}
         if(el.classList.contains('active')){
-            currentItem.tops.push(name);
+            currentItem.tops.push({name:name,price:0});
         }else{
-            currentItem.tops=currentItem.tops.filter(t=>t!==name);
+            currentItem.tops=currentItem.tops.filter(t=>t.name!==name);
         }
     }
 }
@@ -433,11 +434,11 @@ function toggleCompensate(el,name){
     if(el.classList.contains('disabled'))return;
     if(compensateList.includes(name)){
         compensateList=compensateList.filter(t=>t!==name);
-        currentItem.tops=currentItem.tops.filter(t=>t!=='Bù '+name);
+        currentItem.tops=currentItem.tops.filter(t=>t.name!=='Bù '+name);
     }else{
         if(compensateList.length<excludedList.length){
             compensateList.push(name);
-            currentItem.tops.push('Bù '+name);
+            currentItem.tops.push({name:'Bù '+name,price:0});
         }
     }
     renderCompensateChips();
@@ -445,7 +446,6 @@ function toggleCompensate(el,name){
 
 function updateModalTotal(){document.getElementById('modalTotal').textContent=(currentItem.price*currentItem.qty).toLocaleString()+'đ';}
 
-// GIỮ NGUYÊN LOGIC CŨ
 function addToCart(){currentItem.customNote=document.getElementById('customNote').value.trim();cart.push({...currentItem,cartId:Date.now()});document.getElementById('modalOverlay').classList.remove('show');updateCartBar();showToast('Đã thêm vào giỏ');}
 
 function showToast(text){const toast=document.getElementById('toast');document.getElementById('toastText').textContent=text;toast.classList.add('show');setTimeout(()=>toast.classList.remove('show'),2000);}
@@ -456,7 +456,11 @@ function renderCartItems(){
     const body=document.getElementById('cartBody');
     if(!cart.length){body.innerHTML='<div class="cart-empty">🛒 Giỏ hàng trống</div>';document.getElementById('cartSummaryTotal').textContent='0đ';return;}
     body.innerHTML=cart.map((item,i)=>{
-        let d=[];if(item.notes.length)d.push(item.notes.join(', '));if(item.tops.length)d.push(item.tops.join(', '));if(item.customNote)d.push('📝 '+item.customNote);
+        let d=[];
+        if(item.notes.length)d.push(item.notes.join(', '));
+        // tops giờ là array of objects, lấy name để hiển thị
+        if(item.tops.length)d.push(item.tops.map(t=>t.name).join(', '));
+        if(item.customNote)d.push('📝 '+item.customNote);
         return '<div class="cart-item"><img class="cart-item-img" src="'+item.img+'" onerror="this.src=\'/static/logo.png\'"><div class="cart-item-info"><div class="cart-item-name">'+item.name+'</div>'+(d.length?'<div class="cart-item-detail">'+d.join(' • ')+'</div>':'')+'<div class="cart-item-bottom"><div class="cart-item-price">'+(item.price*item.qty).toLocaleString()+'đ</div><div class="cart-item-qty"><button class="cart-qty-btn '+(item.qty===1?'delete':'')+'" onclick="updateCartItem('+i+',-1)">'+(item.qty===1?'🗑️':'−')+'</button><span class="cart-item-num">'+item.qty+'</span><button class="cart-qty-btn" onclick="updateCartItem('+i+',1)">+</button></div></div></div></div>';
     }).join('');
     document.getElementById('cartSummaryTotal').textContent=cart.reduce((s,i)=>s+(i.price*i.qty),0).toLocaleString()+'đ';
@@ -464,11 +468,27 @@ function renderCartItems(){
 function updateCartItem(i,d){if(cart[i].qty+d<=0)cart.splice(i,1);else cart[i].qty+=d;renderCartItems();updateCartBar();}
 function clearCart(){if(cart.length&&confirm('Xóa tất cả?')){cart=[];renderCartItems();updateCartBar();}}
 
-// GIỮ NGUYÊN LOGIC CŨ
 async function submitOrder(){
     if(!cart.length)return showToast('Giỏ hàng trống!');
     const pin=localStorage.getItem('khi_pin');if(!pin||!staffInfo){showToast('Phiên hết hạn!');logout();return;}
-    const data={order_id:'KHI'+orderId,customer:document.getElementById('customerName').value||'Khách lẻ',staff_name:staffInfo.name,staff_pin:pin,items:cart.map(i=>({name:i.name,price:i.price,qty:i.qty,tops:i.tops,notes:i.customNote?[...i.notes,i.customNote]:i.notes})),total:cart.reduce((s,i)=>s+(i.price*i.qty),0)};
+    
+    // Format data theo đúng OrderData schema
+    // tops: List[ToppingItem] = [{name: str, price: int}]
+    const data={
+        order_id:'KHI'+orderId,
+        customer:document.getElementById('customerName').value||'Khách lẻ',
+        staff_name:staffInfo.name,
+        staff_pin:pin,
+        items:cart.map(i=>({
+            name:i.name,
+            price:i.price,
+            qty:i.qty,
+            tops:i.tops, // đã là array of {name, price}
+            notes:i.customNote?[...i.notes,i.customNote]:i.notes
+        })),
+        total:cart.reduce((s,i)=>s+(i.price*i.qty),0)
+    };
+    
     const btn=document.getElementById('submitBtn');btn.innerHTML='<span class="loading"></span>Đang gửi...';btn.disabled=true;
     try{
         const res=await fetch('/api/submit_order',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
