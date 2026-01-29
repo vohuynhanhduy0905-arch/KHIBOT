@@ -5,6 +5,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from pydantic import BaseModel
 from typing import List
+from datetime import datetime
 
 from config import MAIN_GROUP_ID, ORDER_TOPIC_ID, WEB_URL
 from staff_sheet import get_staff_by_pin
@@ -99,6 +100,35 @@ async def submit_order(order: OrderData, bot):
             reply_markup=InlineKeyboardMarkup(kb),
             parse_mode="HTML"
         )
+        
+        # === THÊM ORDER VÀO PENDING LIST CHO KHI-POS ===
+        try:
+            # Import pending_pos_orders từ main
+            import sys
+            main_module = sys.modules.get('main') or sys.modules.get('__main__')
+            if main_module and hasattr(main_module, 'pending_pos_orders'):
+                pos_order = {
+                    "order_id": order.order_id,
+                    "customer": order.customer,
+                    "staff_name": staff_name,
+                    "staff_pin": order.staff_pin,
+                    "items": [
+                        {
+                            "name": item.name,
+                            "price": item.price,
+                            "qty": item.qty,
+                            "tops": [{"name": t.name, "price": t.price} for t in item.tops],
+                            "notes": item.notes
+                        }
+                        for item in order.items
+                    ],
+                    "total": order.total,
+                    "created_at": datetime.now().isoformat()
+                }
+                main_module.pending_pos_orders.append(pos_order)
+                print(f"📤 Order {order.order_id} đã thêm vào pending list cho KHI-POS")
+        except Exception as e:
+            print(f"⚠️ Không thể thêm order vào pending list: {e}")
         
         return {"success": True, "message": "Đã gửi order thành công!"}
         
