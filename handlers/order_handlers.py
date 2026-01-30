@@ -12,6 +12,12 @@ from staff_sheet import get_staff_by_pin
 
 
 # ==========================================
+# PENDING ORDERS - Lưu trữ đơn chờ cho KHI-POS
+# ==========================================
+pending_pos_orders = []
+
+
+# ==========================================
 # MODELS
 # ==========================================
 
@@ -58,6 +64,8 @@ async def order_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def submit_order(order: OrderData, bot):
     """Xử lý submit order từ webapp"""
+    global pending_pos_orders
+    
     try:
         staff = get_staff_by_pin(order.staff_pin)
         
@@ -86,6 +94,8 @@ async def submit_order(order: OrderData, bot):
             detail = f" ({', '.join(extra)})" if extra else ""
             msg += f"• {item.qty}x <b>{item.name}</b>{detail}\n"
         
+        msg += f"\n💰 <b>Tổng: {order.total:,}đ</b>"
+        
         await bot.send_message(
             chat_id=MAIN_GROUP_ID,
             message_thread_id=ORDER_TOPIC_ID,
@@ -94,38 +104,50 @@ async def submit_order(order: OrderData, bot):
         )
         
         # === THÊM ORDER VÀO PENDING LIST CHO KHI-POS ===
-        try:
-            # Import pending_pos_orders từ main
-            import sys
-            main_module = sys.modules.get('main') or sys.modules.get('__main__')
-            if main_module and hasattr(main_module, 'pending_pos_orders'):
-                pos_order = {
-                    "order_id": order.order_id,
-                    "customer": order.customer,
-                    "staff_name": staff_name,
-                    "staff_pin": order.staff_pin,
-                    "items": [
-                        {
-                            "name": item.name,
-                            "price": item.price,
-                            "qty": item.qty,
-                            "tops": [{"name": t.name, "price": t.price} for t in item.tops],
-                            "notes": item.notes
-                        }
-                        for item in order.items
-                    ],
-                    "total": order.total,
-                    "created_at": datetime.now().isoformat()
+        pos_order = {
+            "order_id": order.order_id,
+            "customer": order.customer,
+            "staff_name": staff_name,
+            "items": [
+                {
+                    "name": item.name,
+                    "price": item.price,
+                    "qty": item.qty,
+                    "tops": [{"name": t.name, "price": t.price} for t in item.tops],
+                    "notes": item.notes
                 }
-                main_module.pending_pos_orders.append(pos_order)
-                print(f"📤 Order {order.order_id} đã thêm vào pending list cho KHI-POS")
-        except Exception as e:
-            print(f"⚠️ Không thể thêm order vào pending list: {e}")
+                for item in order.items
+            ],
+            "total": order.total,
+            "created_at": datetime.now().isoformat()
+        }
+        pending_pos_orders.append(pos_order)
+        print(f"📤 Order {order.order_id} đã thêm vào pending list ({len(pending_pos_orders)} đơn chờ)")
         
         return {"success": True, "message": "Đã gửi order thành công!"}
         
     except Exception as e:
+        print(f"❌ Lỗi submit order: {e}")
         return {"success": False, "message": str(e)}
+
+
+# ==========================================
+# HÀM LẤY VÀ XÓA PENDING ORDERS
+# ==========================================
+
+def get_pending_orders_list():
+    """Trả về danh sách order đang chờ"""
+    global pending_pos_orders
+    return pending_pos_orders
+
+
+def remove_pending_order(order_id: str):
+    """Xóa order khỏi pending list khi POS đã nhận"""
+    global pending_pos_orders
+    before = len(pending_pos_orders)
+    pending_pos_orders = [o for o in pending_pos_orders if o.get("order_id") != order_id]
+    after = len(pending_pos_orders)
+    print(f"✅ Xóa order {order_id}: {before} -> {after} đơn")
 
 
 # ==========================================

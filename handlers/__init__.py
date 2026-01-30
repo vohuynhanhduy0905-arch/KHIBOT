@@ -14,5 +14,6 @@ from handlers.game_handlers import (
     ACTIVE_PK_MATCHES, ACTIVE_KBB_MATCHES
 )
 from handlers.order_handlers import (
-    order_command, submit_order, OrderData
+    order_command, submit_order, OrderData,
+    pending_pos_orders, get_pending_orders_list, remove_pending_order
 )

@@ -38,7 +38,8 @@ from handlers import (
     game_ui_command, kbb_command,
     handle_kbb_create, handle_kbb_join, handle_kbb_choose,
     handle_pk_create, handle_pk_join,
-    order_command, submit_order, OrderData
+    order_command, submit_order, OrderData,
+    pending_pos_orders, get_pending_orders_list, remove_pending_order
 )
 
 init_db()
@@ -753,8 +754,7 @@ def get_review():
 # API CHO KHI-POS (ĐỒNG BỘ MENU)
 # ==========================================
 
-# Lưu trữ order chờ xử lý từ KHIBOT -> KHI-POS
-pending_pos_orders = []
+# pending_pos_orders được import từ handlers.order_handlers
 
 @app.get("/api/menu")
 def get_menu():
@@ -876,20 +876,19 @@ def get_menu():
 
 
 @app.get("/api/pending_orders")
-def get_pending_orders():
+def api_pending_orders():
     """API để KHI-POS lấy danh sách order chờ xử lý"""
-    return {"orders": pending_pos_orders}
+    orders = get_pending_orders_list()
+    return {"orders": orders, "count": len(orders)}
 
 
 @app.post("/api/order_accepted")
-async def order_accepted(request: Request):
+async def api_order_accepted(request: Request):
     """API khi KHI-POS đã nhận order"""
-    global pending_pos_orders
     try:
         data = await request.json()
         order_id = data.get("order_id")
-        # Xóa order khỏi pending list
-        pending_pos_orders = [o for o in pending_pos_orders if o.get("order_id") != order_id]
+        remove_pending_order(order_id)
         return {"success": True, "message": f"Order {order_id} đã được xử lý"}
     except Exception as e:
         return {"success": False, "message": str(e)}
