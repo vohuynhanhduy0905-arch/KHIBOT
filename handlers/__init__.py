@@ -8,12 +8,11 @@ from handlers.admin_handlers import (
     dangky_command, dsnv_command, xoanv_command, broadcast_command
 )
 from handlers.game_handlers import (
-    game_ui_command, slot_command, kbb_command,
-    handle_slot_menu, handle_slot_play,
+    game_ui_command, kbb_command,
     handle_kbb_create, handle_kbb_join, handle_kbb_choose,
     handle_pk_create, handle_pk_join,
     ACTIVE_PK_MATCHES, ACTIVE_KBB_MATCHES
 )
 from handlers.order_handlers import (
-    order_command, submit_order, order_button_callback, OrderData
+    order_command, submit_order, OrderData
 )
