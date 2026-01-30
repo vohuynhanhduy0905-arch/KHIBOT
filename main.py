@@ -35,11 +35,10 @@ from handlers import (
     daily_command, gift_command, shop_command,
     get_main_menu, check_private,
     dangky_command, dsnv_command, xoanv_command, broadcast_command,
-    game_ui_command, slot_command, kbb_command,
-    handle_slot_menu, handle_slot_play,
+    game_ui_command, kbb_command,
     handle_kbb_create, handle_kbb_join, handle_kbb_choose,
     handle_pk_create, handle_pk_join,
-    order_command, submit_order, order_button_callback, OrderData
+    order_command, submit_order, OrderData
 )
 
 init_db()
@@ -228,7 +227,7 @@ async def handle_game_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
     if data == "back_home":
         msg = f"🎰 <b>TRUNG TÂM GIẢI TRÍ</b> 🎰\nChào <b>{user.full_name}</b>, đại gia muốn chơi gì?"
         keyboard = [
-            [InlineKeyboardButton("🎲 Tài Xỉu", callback_data="menu_tx"), InlineKeyboardButton("🎰 Slot", callback_data="slot_menu")],
+            [InlineKeyboardButton("🎲 Tài Xỉu", callback_data="menu_tx")],
             [InlineKeyboardButton("🥊 PK Xúc Xắc", callback_data="menu_pk"), InlineKeyboardButton("✂️ Kéo Búa Bao", callback_data="kbb_menu")],
             [InlineKeyboardButton("❌ Đóng", callback_data="close_menu")]
         ]
@@ -276,10 +275,6 @@ async def handle_game_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
         txt = "🥊 <b>SÀN ĐẤU PK 1vs1 (XU)</b>\nChọn mức cược tại đây, Bot sẽ gửi lời mời vào Nhóm chung.\n👇 <b>Chọn mức thách đấu:</b>"
         kb = [[InlineKeyboardButton("⚡ 10k Xu", callback_data="pk_create_10000"), InlineKeyboardButton("⚡ 20k Xu", callback_data="pk_create_20000"), InlineKeyboardButton("⚡ 50k Xu", callback_data="pk_create_50000"), InlineKeyboardButton("⚡ 100k Xu", callback_data="pk_create_100000")], [InlineKeyboardButton("🔙 Quay lại", callback_data="back_home")]]
         await query.edit_message_text(txt, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
-        return
-    
-    if data == "slot_menu":
-        await handle_slot_menu(update, context)
         return
     
     if data == "kbb_menu":
@@ -543,7 +538,6 @@ bot_app.add_handler(CommandHandler("diemdanh", daily_command))
 bot_app.add_handler(CommandHandler("gift", gift_command))
 bot_app.add_handler(CommandHandler("qua", gift_command))
 bot_app.add_handler(CommandHandler("shop", shop_command))
-bot_app.add_handler(CommandHandler("slot", slot_command))
 bot_app.add_handler(CommandHandler("kbb", kbb_command))
 bot_app.add_handler(CommandHandler("order", order_command))
 bot_app.add_handler(CommandHandler("dangky", dangky_command))
@@ -666,8 +660,6 @@ async def test_announcement(update: Update, context: ContextTypes.DEFAULT_TYPE):
 bot_app.add_handler(CommandHandler("test_thongbao", test_announcement))
 
 bot_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_message))
-bot_app.add_handler(CallbackQueryHandler(order_button_callback, pattern="^(cancel_order_|pos_done)"))
-bot_app.add_handler(CallbackQueryHandler(handle_slot_play, pattern="^slot_play_"))
 bot_app.add_handler(CallbackQueryHandler(handle_pk_create, pattern="^pk_create_"))
 bot_app.add_handler(CallbackQueryHandler(handle_pk_join, pattern="^pk_join$"))
 bot_app.add_handler(CallbackQueryHandler(handle_kbb_create, pattern="^kbb_create_"))
