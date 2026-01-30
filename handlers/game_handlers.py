@@ -28,8 +28,7 @@ async def game_ui_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = f"🎰 <b>TRUNG TÂM GIẢI TRÍ</b> 🎰\nChào <b>{user.full_name}</b>, đại gia muốn chơi gì?"
     keyboard = [
         [
-            InlineKeyboardButton("🎲 Tài Xỉu", callback_data="menu_tx"),
-            InlineKeyboardButton("🎰 Slot", callback_data="slot_menu")
+            InlineKeyboardButton("🎲 Tài Xỉu", callback_data="menu_tx")
         ],
         [
             InlineKeyboardButton("🥊 PK Xúc Xắc", callback_data="menu_pk"),

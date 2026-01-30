@@ -86,18 +86,10 @@ async def submit_order(order: OrderData, bot):
             detail = f" ({', '.join(extra)})" if extra else ""
             msg += f"• {item.qty}x <b>{item.name}</b>{detail}\n"
         
-        kb = [
-            [
-                InlineKeyboardButton("❌ HỦY", callback_data=f"cancel_order_{staff_telegram_id}"),
-                InlineKeyboardButton("✅ ĐÃ NHẬP MÁY", callback_data="pos_done")
-            ]
-        ]
-        
         await bot.send_message(
             chat_id=MAIN_GROUP_ID,
             message_thread_id=ORDER_TOPIC_ID,
             text=msg, 
-            reply_markup=InlineKeyboardMarkup(kb),
             parse_mode="HTML"
         )
         
@@ -141,7 +133,7 @@ async def submit_order(order: OrderData, bot):
 # ==========================================
 
 async def order_button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Xử lý nút HỦY và ĐÃ NHẬP MÁY"""
+    """Xử lý nút HỦY đơn"""
     query = update.callback_query
     user = query.from_user
     data = query.data
@@ -158,13 +150,3 @@ async def order_button_callback(update: Update, context: ContextTypes.DEFAULT_TY
             await query.answer("✅ Đã hủy đơn!")
         except:
             await query.answer("⚠️ Không thể hủy đơn này!", show_alert=True)
-    
-    elif data == "pos_done":
-        try:
-            old_text = query.message.text or query.message.caption or ""
-            new_text = old_text + f"\n\n✅ Đã nhập máy"
-            
-            await query.edit_message_text(text=new_text, parse_mode="HTML")
-            await query.answer("✅ Đã xác nhận!")
-        except Exception as e:
-            await query.answer(f"⚠️ Lỗi: {e}", show_alert=True)
