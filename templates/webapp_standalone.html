@@ -297,8 +297,12 @@ let cart=[],currentItem=null,currentCat='trasua',excludeMode=false,searchQuery='
 let currentToppings=[];
 let excludedList=[];
 let compensateList=[];
-const orderId=Math.floor(Math.random()*900)+100;
-document.getElementById('orderNum').textContent='Đơn #'+orderId;
+// Tạo order_id unique: timestamp + random
+function generateOrderId() {
+    return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+}
+let orderId = generateOrderId();
+document.getElementById('orderNum').textContent='Đơn #'+orderId.slice(-6).toUpperCase();
 
 async function login(){
     const pin=document.getElementById('pinInput').value;
@@ -475,7 +479,7 @@ async function submitOrder(){
     // Format data theo đúng OrderData schema
     // tops: List[ToppingItem] = [{name: str, price: int}]
     const data={
-        order_id:'KHI'+orderId,
+        order_id: orderId,
         customer:document.getElementById('customerName').value||'Khách lẻ',
         staff_name:staffInfo.name,
         staff_pin:pin,
@@ -493,7 +497,7 @@ async function submitOrder(){
     try{
         const res=await fetch('/api/submit_order',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
         const result=await res.json();
-        if(result.success){showToast('✅ Đã gửi order!');cart=[];updateCartBar();document.getElementById('cartModalOverlay').classList.remove('show');document.getElementById('customerName').value='';document.getElementById('orderNum').textContent='Đơn #'+(Math.floor(Math.random()*900)+100);}
+        if(result.success){showToast('✅ Đã gửi order!');cart=[];updateCartBar();document.getElementById('cartModalOverlay').classList.remove('show');document.getElementById('customerName').value='';orderId=generateOrderId();document.getElementById('orderNum').textContent='Đơn #'+orderId.slice(-6).toUpperCase();}
         else{showToast('❌ '+result.message);}
     }catch(err){showToast('❌ Không thể kết nối!');}
     btn.innerHTML='GỬI BẾP 🚀';btn.disabled=false;
