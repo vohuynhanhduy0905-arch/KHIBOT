@@ -178,11 +178,17 @@ def format_order_item(item):
     if item.notes:
         details.extend([n.lower() for n in item.notes])
     
-    # Ghép lại
+    # Ghép lại - Nếu qty=1 thì không ghi số, qty>1 thì ghi số trước
     if details:
-        return f"{item.qty}x {name_short} ({', '.join(details)})"
+        if item.qty == 1:
+            return f"{name_short} ({', '.join(details)})"
+        else:
+            return f"{item.qty} {name_short} ({', '.join(details)})"
     else:
-        return f"{item.qty}x {name_short}"
+        if item.qty == 1:
+            return f"{name_short}"
+        else:
+            return f"{item.qty} {name_short}"
 
 
 # ==========================================
@@ -251,7 +257,12 @@ async def submit_order(order: OrderData, bot):
         staff_name = staff.get("Tên")
         
         # === FORMAT TIN NHẮN RÚT GỌN ===
-        msg = f"🔔 <b>{order.customer.upper()}</b>\n"
+        # Chỉ hiện tên khách nếu không phải "Khách lẻ"
+        customer_name = order.customer.strip()
+        if customer_name.lower() in ["khách lẻ", "khach le", ""]:
+            msg = f"<b>{staff_name}</b>\n"
+        else:
+            msg = f"<b>{customer_name.upper()}</b> ({staff_name})\n"
         
         for item in order.items:
             item_text = format_order_item(item)
