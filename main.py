@@ -27,7 +27,7 @@ from config import (
     MORNING_MESSAGES, EVENING_MESSAGES,
     TX_WIN_RATE, TX_MAX_PLAYS_PER_DAY, TX_MAX_BET_PER_DAY  # MỚI
 )
-from database import init_db, SessionLocal, Employee, Review, ShopLog
+from database import init_db, SessionLocal, Employee, Review, ShopLog, MenuCategory, MenuProduct, MenuTopping, MenuQuickNote
 from staff_sheet import get_staff_by_pin, get_all_staff
 
 from handlers import (
@@ -892,3 +892,481 @@ async def api_order_accepted(request: Request):
         return {"success": True, "message": f"Order {order_id} đã được xử lý"}
     except Exception as e:
         return {"success": False, "message": str(e)}
+@app.get("/api/menu_v2")
+def get_menu_v2():
+    """API mới - Lấy menu từ database"""
+    db = SessionLocal()
+    try:
+        # Lấy categories
+        categories = db.query(MenuCategory).filter(
+            MenuCategory.is_active == True
+        ).order_by(MenuCategory.sort_order).all()
+        
+        # Lấy products
+        products = db.query(MenuProduct).filter(
+            MenuProduct.is_active == True
+        ).order_by(MenuProduct.sort_order).all()
+        
+        # Lấy toppings
+        toppings = db.query(MenuTopping).filter(
+            MenuTopping.is_active == True
+        ).order_by(MenuTopping.sort_order).all()
+        
+        # Lấy quick notes
+        quick_notes = db.query(MenuQuickNote).filter(
+            MenuQuickNote.is_active == True
+        ).order_by(MenuQuickNote.sort_order).all()
+        
+        return {
+            "success": True,
+            "menu": {
+                "categories": [
+                    {"id": c.id, "name": c.name, "icon": c.icon}
+                    for c in categories
+                ],
+                "products": [
+                    {
+                        "id": p.id, 
+                        "cat": p.category_id, 
+                        "name": p.name, 
+                        "price": p.price, 
+                        "img": p.image
+                    }
+                    for p in products
+                ],
+                "toppings": [
+                    {"name": t.name, "price": t.price, "type": t.topping_type}
+                    for t in toppings
+                ],
+                "quick_notes": [n.text for n in quick_notes]
+            }
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+    finally:
+        db.close()
+
+
+# ============================
+# API SEED - IMPORT DATA TỪ HARDCODE VÀO DB
+# ============================
+
+@app.post("/api/admin/seed")
+def seed_menu_data():
+    """Import data từ hardcode vào database (chạy 1 lần)"""
+    db = SessionLocal()
+    try:
+        # Kiểm tra đã có data chưa
+        if db.query(MenuCategory).count() > 0:
+            return {"success": False, "message": "Database đã có data, không cần seed lại"}
+        
+        # === SEED CATEGORIES ===
+        categories_data = [
+            {"id": "trasua", "name": "Trà Sữa", "icon": "🧋", "sort_order": 1},
+            {"id": "traicay", "name": "Trà Trái Cây", "icon": "🍹", "sort_order": 2},
+            {"id": "macchiato", "name": "Macchiato", "icon": "🥛", "sort_order": 3},
+            {"id": "dacbiet", "name": "Đặc Biệt", "icon": "⭐", "sort_order": 4},
+            {"id": "topping", "name": "Topping Thêm", "icon": "🍡", "sort_order": 5},
+            {"id": "kotop", "name": "KO TOP", "icon": "🚫", "sort_order": 6},
+        ]
+        for c in categories_data:
+            db.add(MenuCategory(**c))
+        
+        # === SEED PRODUCTS ===
+        products_data = [
+            # Trà Sữa
+            {"category_id": "trasua", "name": "Trà Sữa Truyền Thống", "price": 25000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678320/ts-truyenthong_umocuv.jpg", "sort_order": 1},
+            {"category_id": "trasua", "name": "Trà Sữa Matcha", "price": 25000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678307/ts-matcha_gobwvh.jpg", "sort_order": 2},
+            {"category_id": "trasua", "name": "Trà Sữa Caramel", "price": 25000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678299/ts-caramel_u6vaqg.jpg", "sort_order": 3},
+            {"category_id": "trasua", "name": "Trà Sữa Ô Long", "price": 25000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678320/ts-olong_kn2h1c.jpg", "sort_order": 4},
+            {"category_id": "trasua", "name": "Trà Sữa Chocolate", "price": 25000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678306/ts-chocolate_kuosxw.jpg", "sort_order": 5},
+            {"category_id": "trasua", "name": "Trà Sữa Đào", "price": 25000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678306/ts-dao_jovzy8.jpg", "sort_order": 6},
+            # Trà Trái Cây
+            {"category_id": "traicay", "name": "Trà Đác Dâu Tằm", "price": 27000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678281/tc-dautam_lifxht.jpg", "sort_order": 1},
+            {"category_id": "traicay", "name": "Trà Đác Thơm", "price": 27000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678280/tc-dacthom_s91uyt.jpg", "sort_order": 2},
+            {"category_id": "traicay", "name": "Trà Ổi Hồng", "price": 27000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678290/tc-oihong_utnw5w.jpg", "sort_order": 3},
+            {"category_id": "traicay", "name": "Trà Nhiệt Đới", "price": 27000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678289/tc-nhietdoi_qzmyyi.jpg", "sort_order": 4},
+            {"category_id": "traicay", "name": "Trà Táo Xanh", "price": 27000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678291/tc-taoxanh_ljrgr1.jpg", "sort_order": 5},
+            {"category_id": "traicay", "name": "Trà Dưa Lưới", "price": 27000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678281/tc-dualuoi_frskc0.jpg", "sort_order": 6},
+            {"category_id": "traicay", "name": "Trà Mãng Cầu", "price": 27000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678282/tc-mangcau_bff6ir.jpg", "sort_order": 7},
+            {"category_id": "traicay", "name": "Trà Cóc Hạt Đác", "price": 27000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678276/tc-cochatdac_lat80f.jpg", "sort_order": 8},
+            # Macchiato
+            {"category_id": "macchiato", "name": "Trà Đào Macchiato", "price": 25000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678264/mc-dao_arsc8z.jpg", "sort_order": 1},
+            {"category_id": "macchiato", "name": "Trà Dâu Macchiato", "price": 25000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678266/mc-dau_ythwfg.jpg", "sort_order": 2},
+            {"category_id": "macchiato", "name": "Trà Vải Macchiato", "price": 25000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678273/mc-vai_y05t2z.jpg", "sort_order": 3},
+            {"category_id": "macchiato", "name": "Hồng Trà Macchiato", "price": 25000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678268/mc-hongtra_dwjbd2.jpg", "sort_order": 4},
+            {"category_id": "macchiato", "name": "Ô Long Macchiato", "price": 25000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678270/mc-olong_sqykw6.jpg", "sort_order": 5},
+            {"category_id": "macchiato", "name": "Trà Sen Macchiato", "price": 25000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678271/mc-sen_kco8x7.jpg", "sort_order": 6},
+            # Đặc Biệt
+            {"category_id": "dacbiet", "name": "Trà Sủi", "price": 25000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769679055/Tr%C3%A0_%C4%90%C3%A1c_D%C3%A2u_T%E1%BA%B1m_vxk6nj.jpg", "sort_order": 1},
+            {"category_id": "dacbiet", "name": "Sữa Tươi Trân Châu Đ.Đ", "price": 27000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678262/db-suatuoi_ymftil.jpg", "sort_order": 2},
+            {"category_id": "dacbiet", "name": "Hồng Trà Latte", "price": 27000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678258/db-hongtralatte_cko07b.jpg", "sort_order": 3},
+            {"category_id": "dacbiet", "name": "Matcha Latte", "price": 27000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678261/db-matchalatte_em8slk.jpg", "sort_order": 4},
+            # Topping
+            {"category_id": "topping", "name": "Thêm Trân Châu", "price": 5000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678298/tp-tranchau_ff3k5o.jpg", "sort_order": 1},
+            {"category_id": "topping", "name": "Thêm Củ Năng", "price": 5000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678248/8_tikfnv.jpg", "sort_order": 2},
+            {"category_id": "topping", "name": "Thêm Phô Mai", "price": 5000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678247/7_pavlgu.jpg", "sort_order": 3},
+            {"category_id": "topping", "name": "Thêm Rau Câu", "price": 5000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769677875/3_davt5n.jpg", "sort_order": 4},
+            {"category_id": "topping", "name": "Thêm Khúc Bạch", "price": 5000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769677876/4_fx9ojc.jpg", "sort_order": 5},
+            {"category_id": "topping", "name": "Thêm Sương Sáo", "price": 5000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769677875/1_uuksk1.jpg", "sort_order": 6},
+            {"category_id": "topping", "name": "Thêm Thạch Đào", "price": 5000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678030/6_ux0ytb.jpg", "sort_order": 7},
+            {"category_id": "topping", "name": "Thêm Flan Trứng", "price": 5000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769677875/2_lqjdoz.jpg", "sort_order": 8},
+            {"category_id": "topping", "name": "Thêm Ngọc Trai", "price": 5000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769677889/5_wy4gyz.jpg", "sort_order": 9},
+            {"category_id": "topping", "name": "Thêm Khoai Dẻo", "price": 5000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678249/9_klh8kn.jpg", "sort_order": 10},
+            {"category_id": "topping", "name": "Thêm Đác Thơm", "price": 10000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678252/13_fsntwx.jpg", "sort_order": 11},
+            {"category_id": "topping", "name": "Thêm Đác Dâu Tằm", "price": 10000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678250/12_yjvbsp.jpg", "sort_order": 12},
+            {"category_id": "topping", "name": "Thêm Trái Cây Nhiệt Đới", "price": 10000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678251/10_oqpadz.jpg", "sort_order": 13},
+            {"category_id": "topping", "name": "Thêm Táo Xanh", "price": 10000, "image": "/static/logo.png", "sort_order": 14},
+            {"category_id": "topping", "name": "Thêm Dưa Lưới", "price": 10000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678257/16_zirfjx.jpg", "sort_order": 15},
+            {"category_id": "topping", "name": "Thêm Ổi Hồng", "price": 10000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678256/15_mwtccy.jpg", "sort_order": 16},
+            {"category_id": "topping", "name": "Thêm Mãng Cầu", "price": 10000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678255/14_btqjzs.jpg", "sort_order": 17},
+            # KO TOPPING - Trà Sữa
+            {"category_id": "kotop", "name": "TS Truyền Thống Ko Topping", "price": 19000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678320/ts-truyenthong_umocuv.jpg", "sort_order": 1},
+            {"category_id": "kotop", "name": "TS Matcha Ko Topping", "price": 19000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678307/ts-matcha_gobwvh.jpg", "sort_order": 2},
+            {"category_id": "kotop", "name": "TS Caramel Ko Topping", "price": 19000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678299/ts-caramel_u6vaqg.jpg", "sort_order": 3},
+            {"category_id": "kotop", "name": "TS Ô Long Ko Topping", "price": 19000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678320/ts-olong_kn2h1c.jpg", "sort_order": 4},
+            {"category_id": "kotop", "name": "TS Chocolate Ko Topping", "price": 19000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678306/ts-chocolate_kuosxw.jpg", "sort_order": 5},
+            {"category_id": "kotop", "name": "TS Đào Ko Topping", "price": 19000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678306/ts-dao_jovzy8.jpg", "sort_order": 6},
+            # KO TOPPING - Macchiato
+            {"category_id": "kotop", "name": "Trà Đào Ko Topping", "price": 19000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678264/mc-dao_arsc8z.jpg", "sort_order": 7},
+            {"category_id": "kotop", "name": "Trà Dâu Ko Topping", "price": 19000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678266/mc-dau_ythwfg.jpg", "sort_order": 8},
+            {"category_id": "kotop", "name": "Trà Vải Ko Topping", "price": 19000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678273/mc-vai_y05t2z.jpg", "sort_order": 9},
+            {"category_id": "kotop", "name": "Hồng Trà Ko Topping", "price": 19000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678268/mc-hongtra_dwjbd2.jpg", "sort_order": 10},
+            {"category_id": "kotop", "name": "Ô Long Ko Topping", "price": 19000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678270/mc-olong_sqykw6.jpg", "sort_order": 11},
+            {"category_id": "kotop", "name": "Trà Sen Ko Topping", "price": 19000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678271/mc-sen_kco8x7.jpg", "sort_order": 12},
+            # KO TOPPING - Đặc Biệt
+            {"category_id": "kotop", "name": "Trà Sủi Ko Topping", "price": 19000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769679055/Tr%C3%A0_%C4%90%C3%A1c_D%C3%A2u_T%E1%BA%B1m_vxk6nj.jpg", "sort_order": 13},
+            {"category_id": "kotop", "name": "Hồng Trà Latte Ko Topping", "price": 22000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678258/db-hongtralatte_cko07b.jpg", "sort_order": 14},
+            {"category_id": "kotop", "name": "Matcha Latte Ko Topping", "price": 22000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678261/db-matchalatte_em8slk.jpg", "sort_order": 15},
+            # KO TOPPING - Trái Cây
+            {"category_id": "kotop", "name": "Trà Đác Dâu Tằm Ko Topping", "price": 19000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678281/tc-dautam_lifxht.jpg", "sort_order": 16},
+            {"category_id": "kotop", "name": "Trà Đác Thơm Ko Topping", "price": 19000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678280/tc-dacthom_s91uyt.jpg", "sort_order": 17},
+            {"category_id": "kotop", "name": "Trà Ổi Hồng Ko Topping", "price": 19000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678290/tc-oihong_utnw5w.jpg", "sort_order": 18},
+            {"category_id": "kotop", "name": "Trà Nhiệt Đới Ko Topping", "price": 19000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678289/tc-nhietdoi_qzmyyi.jpg", "sort_order": 19},
+            {"category_id": "kotop", "name": "Trà Táo Xanh Ko Topping", "price": 19000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678291/tc-taoxanh_ljrgr1.jpg", "sort_order": 20},
+            {"category_id": "kotop", "name": "Trà Dưa Lưới Ko Topping", "price": 19000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678281/tc-dualuoi_frskc0.jpg", "sort_order": 21},
+            {"category_id": "kotop", "name": "Trà Mãng Cầu Ko Topping", "price": 19000, "image": "/static/logo.png", "sort_order": 22},
+            {"category_id": "kotop", "name": "Trà Cóc Hạt Đác Ko Topping", "price": 19000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678276/tc-cochatdac_lat80f.jpg", "sort_order": 23},
+        ]
+        for p in products_data:
+            db.add(MenuProduct(**p))
+        
+        # === SEED TOPPINGS ===
+        toppings_data = [
+            {"name": "Trân Châu", "price": 5000, "topping_type": "basic", "sort_order": 1},
+            {"name": "Củ Năng", "price": 5000, "topping_type": "basic", "sort_order": 2},
+            {"name": "Phô Mai", "price": 5000, "topping_type": "basic", "sort_order": 3},
+            {"name": "Rau Câu", "price": 5000, "topping_type": "basic", "sort_order": 4},
+            {"name": "Khúc Bạch", "price": 5000, "topping_type": "basic", "sort_order": 5},
+            {"name": "Sương Sáo", "price": 5000, "topping_type": "basic", "sort_order": 6},
+            {"name": "Thạch Đào", "price": 5000, "topping_type": "basic", "sort_order": 7},
+            {"name": "Flan Trứng", "price": 5000, "topping_type": "basic", "sort_order": 8},
+            {"name": "Ngọc Trai", "price": 5000, "topping_type": "basic", "sort_order": 9},
+            {"name": "Khoai Dẻo", "price": 5000, "topping_type": "basic", "sort_order": 10},
+            {"name": "Đác Thơm", "price": 10000, "topping_type": "fruit", "sort_order": 11},
+            {"name": "Đác Dâu Tằm", "price": 10000, "topping_type": "fruit", "sort_order": 12},
+            {"name": "Trái Cây Nhiệt Đới", "price": 10000, "topping_type": "fruit", "sort_order": 13},
+            {"name": "Táo Xanh", "price": 10000, "topping_type": "fruit", "sort_order": 14},
+            {"name": "Dưa Lưới", "price": 10000, "topping_type": "fruit", "sort_order": 15},
+            {"name": "Ổi Hồng", "price": 10000, "topping_type": "fruit", "sort_order": 16},
+            {"name": "Mãng Cầu", "price": 10000, "topping_type": "fruit", "sort_order": 17},
+        ]
+        for t in toppings_data:
+            db.add(MenuTopping(**t))
+        
+        # === SEED QUICK NOTES ===
+        notes_data = [
+            {"text": "Ít đá", "sort_order": 1},
+            {"text": "Không đá", "sort_order": 2},
+            {"text": "Ít ngọt", "sort_order": 3},
+            {"text": "Nhiều ngọt", "sort_order": 4},
+            {"text": "Mang về", "sort_order": 5},
+            {"text": "Làm chua", "sort_order": 6},
+            {"text": "Ít chua", "sort_order": 7},
+            {"text": "Đậy nắp", "sort_order": 8},
+            {"text": "Ép nắp", "sort_order": 9},
+            {"text": "Ko kem", "sort_order": 10},
+            {"text": "Kem riêng", "sort_order": 11},
+            {"text": "Đá riêng", "sort_order": 12},
+        ]
+        for n in notes_data:
+            db.add(MenuQuickNote(**n))
+        
+        db.commit()
+        return {
+            "success": True, 
+            "message": "Đã import data vào database",
+            "stats": {
+                "categories": len(categories_data),
+                "products": len(products_data),
+                "toppings": len(toppings_data),
+                "quick_notes": len(notes_data)
+            }
+        }
+    except Exception as e:
+        db.rollback()
+        return {"success": False, "error": str(e)}
+    finally:
+        db.close()
+
+
+# ============================
+# API CRUD - QUẢN LÝ MENU
+# ============================
+
+# --- CATEGORIES ---
+@app.post("/api/admin/category")
+async def add_category(request: Request):
+    """Thêm danh mục mới"""
+    db = SessionLocal()
+    try:
+        data = await request.json()
+        category = MenuCategory(
+            id=data.get("id"),
+            name=data.get("name"),
+            icon=data.get("icon", "📁"),
+            sort_order=data.get("sort_order", 0),
+            is_active=True
+        )
+        db.add(category)
+        db.commit()
+        return {"success": True, "message": "Đã thêm danh mục"}
+    except Exception as e:
+        db.rollback()
+        return {"success": False, "error": str(e)}
+    finally:
+        db.close()
+
+@app.put("/api/admin/category/{cat_id}")
+async def update_category(cat_id: str, request: Request):
+    """Sửa danh mục"""
+    db = SessionLocal()
+    try:
+        data = await request.json()
+        category = db.query(MenuCategory).filter(MenuCategory.id == cat_id).first()
+        if not category:
+            return {"success": False, "error": "Không tìm thấy danh mục"}
+        
+        if "name" in data: category.name = data["name"]
+        if "icon" in data: category.icon = data["icon"]
+        if "sort_order" in data: category.sort_order = data["sort_order"]
+        if "is_active" in data: category.is_active = data["is_active"]
+        
+        db.commit()
+        return {"success": True, "message": "Đã cập nhật danh mục"}
+    except Exception as e:
+        db.rollback()
+        return {"success": False, "error": str(e)}
+    finally:
+        db.close()
+
+@app.delete("/api/admin/category/{cat_id}")
+def delete_category(cat_id: str):
+    """Xóa danh mục (soft delete)"""
+    db = SessionLocal()
+    try:
+        category = db.query(MenuCategory).filter(MenuCategory.id == cat_id).first()
+        if not category:
+            return {"success": False, "error": "Không tìm thấy danh mục"}
+        category.is_active = False
+        db.commit()
+        return {"success": True, "message": "Đã xóa danh mục"}
+    except Exception as e:
+        db.rollback()
+        return {"success": False, "error": str(e)}
+    finally:
+        db.close()
+
+# --- PRODUCTS ---
+@app.post("/api/admin/product")
+async def add_product(request: Request):
+    """Thêm sản phẩm mới"""
+    db = SessionLocal()
+    try:
+        data = await request.json()
+        product = MenuProduct(
+            category_id=data.get("category_id"),
+            name=data.get("name"),
+            price=data.get("price", 0),
+            image=data.get("image", ""),
+            sort_order=data.get("sort_order", 0),
+            is_active=True
+        )
+        db.add(product)
+        db.commit()
+        db.refresh(product)
+        return {"success": True, "message": "Đã thêm sản phẩm", "id": product.id}
+    except Exception as e:
+        db.rollback()
+        return {"success": False, "error": str(e)}
+    finally:
+        db.close()
+
+@app.put("/api/admin/product/{product_id}")
+async def update_product(product_id: int, request: Request):
+    """Sửa sản phẩm"""
+    db = SessionLocal()
+    try:
+        data = await request.json()
+        product = db.query(MenuProduct).filter(MenuProduct.id == product_id).first()
+        if not product:
+            return {"success": False, "error": "Không tìm thấy sản phẩm"}
+        
+        if "name" in data: product.name = data["name"]
+        if "price" in data: product.price = data["price"]
+        if "image" in data: product.image = data["image"]
+        if "category_id" in data: product.category_id = data["category_id"]
+        if "sort_order" in data: product.sort_order = data["sort_order"]
+        if "is_active" in data: product.is_active = data["is_active"]
+        
+        db.commit()
+        return {"success": True, "message": "Đã cập nhật sản phẩm"}
+    except Exception as e:
+        db.rollback()
+        return {"success": False, "error": str(e)}
+    finally:
+        db.close()
+
+@app.delete("/api/admin/product/{product_id}")
+def delete_product(product_id: int):
+    """Xóa sản phẩm (soft delete)"""
+    db = SessionLocal()
+    try:
+        product = db.query(MenuProduct).filter(MenuProduct.id == product_id).first()
+        if not product:
+            return {"success": False, "error": "Không tìm thấy sản phẩm"}
+        product.is_active = False
+        db.commit()
+        return {"success": True, "message": "Đã xóa sản phẩm"}
+    except Exception as e:
+        db.rollback()
+        return {"success": False, "error": str(e)}
+    finally:
+        db.close()
+
+# --- TOPPINGS ---
+@app.post("/api/admin/topping")
+async def add_topping(request: Request):
+    """Thêm topping mới"""
+    db = SessionLocal()
+    try:
+        data = await request.json()
+        topping = MenuTopping(
+            name=data.get("name"),
+            price=data.get("price", 5000),
+            topping_type=data.get("topping_type", "basic"),
+            sort_order=data.get("sort_order", 0),
+            is_active=True
+        )
+        db.add(topping)
+        db.commit()
+        db.refresh(topping)
+        return {"success": True, "message": "Đã thêm topping", "id": topping.id}
+    except Exception as e:
+        db.rollback()
+        return {"success": False, "error": str(e)}
+    finally:
+        db.close()
+
+@app.put("/api/admin/topping/{topping_id}")
+async def update_topping(topping_id: int, request: Request):
+    """Sửa topping"""
+    db = SessionLocal()
+    try:
+        data = await request.json()
+        topping = db.query(MenuTopping).filter(MenuTopping.id == topping_id).first()
+        if not topping:
+            return {"success": False, "error": "Không tìm thấy topping"}
+        
+        if "name" in data: topping.name = data["name"]
+        if "price" in data: topping.price = data["price"]
+        if "topping_type" in data: topping.topping_type = data["topping_type"]
+        if "sort_order" in data: topping.sort_order = data["sort_order"]
+        if "is_active" in data: topping.is_active = data["is_active"]
+        
+        db.commit()
+        return {"success": True, "message": "Đã cập nhật topping"}
+    except Exception as e:
+        db.rollback()
+        return {"success": False, "error": str(e)}
+    finally:
+        db.close()
+
+@app.delete("/api/admin/topping/{topping_id}")
+def delete_topping(topping_id: int):
+    """Xóa topping (soft delete)"""
+    db = SessionLocal()
+    try:
+        topping = db.query(MenuTopping).filter(MenuTopping.id == topping_id).first()
+        if not topping:
+            return {"success": False, "error": "Không tìm thấy topping"}
+        topping.is_active = False
+        db.commit()
+        return {"success": True, "message": "Đã xóa topping"}
+    except Exception as e:
+        db.rollback()
+        return {"success": False, "error": str(e)}
+    finally:
+        db.close()
+
+# --- QUICK NOTES ---
+@app.post("/api/admin/note")
+async def add_note(request: Request):
+    """Thêm ghi chú nhanh"""
+    db = SessionLocal()
+    try:
+        data = await request.json()
+        note = MenuQuickNote(
+            text=data.get("text"),
+            sort_order=data.get("sort_order", 0),
+            is_active=True
+        )
+        db.add(note)
+        db.commit()
+        db.refresh(note)
+        return {"success": True, "message": "Đã thêm ghi chú", "id": note.id}
+    except Exception as e:
+        db.rollback()
+        return {"success": False, "error": str(e)}
+    finally:
+        db.close()
+
+@app.put("/api/admin/note/{note_id}")
+async def update_note(note_id: int, request: Request):
+    """Sửa ghi chú"""
+    db = SessionLocal()
+    try:
+        data = await request.json()
+        note = db.query(MenuQuickNote).filter(MenuQuickNote.id == note_id).first()
+        if not note:
+            return {"success": False, "error": "Không tìm thấy ghi chú"}
+        
+        if "text" in data: note.text = data["text"]
+        if "sort_order" in data: note.sort_order = data["sort_order"]
+        if "is_active" in data: note.is_active = data["is_active"]
+        
+        db.commit()
+        return {"success": True, "message": "Đã cập nhật ghi chú"}
+    except Exception as e:
+        db.rollback()
+        return {"success": False, "error": str(e)}
+    finally:
+        db.close()
+
+@app.delete("/api/admin/note/{note_id}")
+def delete_note(note_id: int):
+    """Xóa ghi chú (soft delete)"""
+    db = SessionLocal()
+    try:
+        note = db.query(MenuQuickNote).filter(MenuQuickNote.id == note_id).first()
+        if not note:
+            return {"success": False, "error": "Không tìm thấy ghi chú"}
+        note.is_active = False
+        db.commit()
+        return {"success": True, "message": "Đã xóa ghi chú"}
+    except Exception as e:
+        db.rollback()
+        return {"success": False, "error": str(e)}
+    finally:
+        db.close()
+
