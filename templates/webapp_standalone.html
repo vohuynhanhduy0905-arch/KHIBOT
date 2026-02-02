@@ -118,6 +118,20 @@
         .cart-qty-btn{width:28px;height:28px;border:none;background:#f0f0f0;border-radius:8px;font-size:16px;font-weight:700;cursor:pointer}
         .cart-qty-btn.delete{background:#ffe5e5;color:var(--danger)}
         .cart-item-num{font-weight:600;min-width:24px;text-align:center;font-size:14px}
+        .cart-item-edit{color:var(--primary);font-size:11px;cursor:pointer;text-decoration:underline;margin-top:4px}
+        .edit-modal{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:250;display:none;align-items:center;justify-content:center;padding:20px}
+        .edit-modal.show{display:flex}
+        .edit-box{background:#fff;width:100%;max-width:360px;border-radius:16px;overflow:hidden}
+        .edit-header{padding:15px;border-bottom:1px solid var(--border);font-weight:700;display:flex;justify-content:space-between;align-items:center}
+        .edit-body{padding:15px;max-height:60vh;overflow-y:auto}
+        .edit-section{margin-bottom:15px}
+        .edit-label{font-size:12px;font-weight:600;color:var(--text-light);margin-bottom:8px}
+        .edit-chips{display:flex;flex-wrap:wrap;gap:6px}
+        .edit-chip{padding:8px 12px;border:2px solid var(--border);border-radius:20px;font-size:11px;cursor:pointer;background:#fff}
+        .edit-chip.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+        .edit-note{width:100%;padding:10px;border:2px solid var(--border);border-radius:10px;font-size:13px;resize:none;font-family:inherit}
+        .edit-footer{padding:15px;border-top:1px solid var(--border)}
+        .edit-save{width:100%;padding:12px;background:var(--primary);color:#fff;border:none;border-radius:10px;font-weight:600;cursor:pointer}
         .cart-footer{padding:15px;border-top:1px solid var(--border)}
         .cart-summary{display:flex;justify-content:space-between;margin-bottom:12px;font-size:14px}
         .cart-summary-total{font-weight:700;font-size:18px;color:var(--primary)}
@@ -210,6 +224,27 @@
             <div class="cart-footer">
                 <div class="cart-summary"><div>Tổng cộng</div><div class="cart-summary-total" id="cartSummaryTotal">0đ</div></div>
                 <button class="submit-btn" id="submitBtn" onclick="submitOrder()">GỬI BẾP 🚀</button>
+            </div>
+        </div>
+    </div>
+    <div class="edit-modal" id="editModal" onclick="closeEditModal(event)">
+        <div class="edit-box" onclick="event.stopPropagation()">
+            <div class="edit-header">
+                <span>✏️ Sửa ghi chú</span>
+                <button class="modal-close" onclick="closeEditModal()">✕</button>
+            </div>
+            <div class="edit-body">
+                <div class="edit-section">
+                    <div class="edit-label">Ghi chú nhanh</div>
+                    <div class="edit-chips" id="editNoteChips"></div>
+                </div>
+                <div class="edit-section">
+                    <div class="edit-label">Ghi chú thêm</div>
+                    <textarea class="edit-note" id="editCustomNote" rows="2" placeholder="Ghi chú thêm..."></textarea>
+                </div>
+            </div>
+            <div class="edit-footer">
+                <button class="edit-save" onclick="saveEditNote()">LƯU</button>
             </div>
         </div>
     </div>
@@ -462,15 +497,46 @@ function renderCartItems(){
     body.innerHTML=cart.map((item,i)=>{
         let d=[];
         if(item.notes.length)d.push(item.notes.join(', '));
-        // tops giờ là array of objects, lấy name để hiển thị
         if(item.tops.length)d.push(item.tops.map(t=>t.name).join(', '));
         if(item.customNote)d.push('📝 '+item.customNote);
-        return '<div class="cart-item"><img class="cart-item-img" src="'+item.img+'" onerror="this.src=\'/static/logo.png\'"><div class="cart-item-info"><div class="cart-item-name">'+item.name+'</div>'+(d.length?'<div class="cart-item-detail">'+d.join(' • ')+'</div>':'')+'<div class="cart-item-bottom"><div class="cart-item-price">'+(item.price*item.qty).toLocaleString()+'đ</div><div class="cart-item-qty"><button class="cart-qty-btn '+(item.qty===1?'delete':'')+'" onclick="updateCartItem('+i+',-1)">'+(item.qty===1?'🗑️':'−')+'</button><span class="cart-item-num">'+item.qty+'</span><button class="cart-qty-btn" onclick="updateCartItem('+i+',1)">+</button></div></div></div></div>';
+        return '<div class="cart-item"><img class="cart-item-img" src="'+item.img+'" onerror="this.src=\'/static/logo.png\'"><div class="cart-item-info"><div class="cart-item-name">'+item.name+'</div>'+(d.length?'<div class="cart-item-detail">'+d.join(' • ')+'</div>':'')+'<div class="cart-item-edit" onclick="openEditNote('+i+')">✏️ Sửa ghi chú</div><div class="cart-item-bottom"><div class="cart-item-price">'+(item.price*item.qty).toLocaleString()+'đ</div><div class="cart-item-qty"><button class="cart-qty-btn '+(item.qty===1?'delete':'')+'" onclick="updateCartItem('+i+',-1)">'+(item.qty===1?'🗑️':'−')+'</button><span class="cart-item-num">'+item.qty+'</span><button class="cart-qty-btn" onclick="updateCartItem('+i+',1)">+</button></div></div></div></div>';
     }).join('');
     document.getElementById('cartSummaryTotal').textContent=cart.reduce((s,i)=>s+(i.price*i.qty),0).toLocaleString()+'đ';
 }
 function updateCartItem(i,d){if(cart[i].qty+d<=0)cart.splice(i,1);else cart[i].qty+=d;renderCartItems();updateCartBar();}
 function clearCart(){if(cart.length&&confirm('Xóa tất cả?')){cart=[];renderCartItems();updateCartBar();}}
+
+let editingIndex = -1;
+function openEditNote(index){
+    editingIndex = index;
+    const item = cart[index];
+    // Render chips ghi chú
+    document.getElementById('editNoteChips').innerHTML = NOTES.map(n => 
+        `<div class="edit-chip${item.notes.includes(n)?' active':''}" onclick="toggleEditNote(this,'${n}')">${n}</div>`
+    ).join('');
+    document.getElementById('editCustomNote').value = item.customNote || '';
+    document.getElementById('editModal').classList.add('show');
+}
+function closeEditModal(e){
+    if(!e || e.target.id === 'editModal') document.getElementById('editModal').classList.remove('show');
+}
+function toggleEditNote(el, note){
+    el.classList.toggle('active');
+}
+function saveEditNote(){
+    if(editingIndex < 0) return;
+    // Lấy các ghi chú đã chọn
+    const chips = document.querySelectorAll('#editNoteChips .edit-chip.active');
+    const notes = Array.from(chips).map(c => c.textContent);
+    const customNote = document.getElementById('editCustomNote').value.trim();
+    // Cập nhật cart
+    cart[editingIndex].notes = notes;
+    cart[editingIndex].customNote = customNote;
+    // Đóng modal và render lại
+    document.getElementById('editModal').classList.remove('show');
+    renderCartItems();
+    showToast('Đã lưu ghi chú!');
+}
 
 async function submitOrder(){
     if(!cart.length)return showToast('Giỏ hàng trống!');
