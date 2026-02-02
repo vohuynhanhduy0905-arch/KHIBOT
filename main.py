@@ -935,10 +935,13 @@ def get_menu_v2():
                     for p in products
                 ],
                 "toppings": [
-                    {"name": t.name, "price": t.price, "type": t.topping_type}
+                    {"id": t.id, "name": t.name, "price": t.price, "type": t.topping_type}
                     for t in toppings
                 ],
-                "quick_notes": [n.text for n in quick_notes]
+                "quick_notes": [
+                    {"id": n.id, "text": n.text}
+                    for n in quick_notes
+                ]
             }
         }
     except Exception as e:
