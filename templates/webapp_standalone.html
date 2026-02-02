@@ -249,10 +249,18 @@
         </div>
     </div>
 <script>
-const NOTES = ["Ít đá", "Không đá", "Ít ngọt", "Nhiều ngọt", "Mang về", "Làm chua", "Ít chua", "Đậy nắp", "Ép nắp", "Ko kem", "Kem riêng", "Đá riêng"];
-const TOPPINGS_BASIC = ["Trân Châu", "Củ Năng", "Phô Mai", "Rau Câu", "Khúc Bạch", "Sương Sáo", "Thạch Đào", "Flan Trứng", "Ngọc Trai", "Khoai Dẻo"];
-const TOPPINGS_FRUIT = ["Đác Thơm", "Đác Dâu Tằm", "Trái Cây Nhiệt Đới", "Táo Xanh", "Dưa Lưới", "Ổi Hồng", "Mãng Cầu"];
-const CATEGORIES = [
+// === MENU DATA - LOAD TỪ DATABASE ===
+let NOTES = [];
+let TOPPINGS_BASIC = [];
+let TOPPINGS_FRUIT = [];
+let CATEGORIES = [];
+let PRODUCTS = [];
+
+// === DEFAULT FALLBACK (dùng khi API lỗi) ===
+const DEFAULT_NOTES = ["Ít đá", "Không đá", "Ít ngọt", "Nhiều ngọt", "Mang về", "Làm chua", "Ít chua", "Đậy nắp", "Ép nắp", "Ko kem", "Kem riêng", "Đá riêng"];
+const DEFAULT_TOPPINGS_BASIC = ["Trân Châu", "Củ Năng", "Phô Mai", "Rau Câu", "Khúc Bạch", "Sương Sáo", "Thạch Đào", "Flan Trứng", "Ngọc Trai", "Khoai Dẻo"];
+const DEFAULT_TOPPINGS_FRUIT = ["Đác Thơm", "Đác Dâu Tằm", "Trái Cây Nhiệt Đới", "Táo Xanh", "Dưa Lưới", "Ổi Hồng", "Mãng Cầu"];
+const DEFAULT_CATEGORIES = [
     {id:'trasua',name:'🧋 Trà Sữa'},
     {id:'traicay',name:'🍹 Trà Trái Cây'},
     {id:'macchiato',name:'🥛 Macchiato'},
@@ -260,7 +268,7 @@ const CATEGORIES = [
     {id:'topping',name:'🍡 Topping Thêm'},
     {id:'kotop',name:'🚫 KO TOP'}
 ];
-const PRODUCTS = [
+const DEFAULT_PRODUCTS = [
     {id:1,cat:'trasua',name:'Trà Sữa Truyền Thống',price:25000,img:'https://res.cloudinary.com/anhduy/image/upload/v1769678320/ts-truyenthong_umocuv.jpg'},
     {id:2,cat:'trasua',name:'Trà Sữa Matcha',price:25000,img:'https://res.cloudinary.com/anhduy/image/upload/v1769678307/ts-matcha_gobwvh.jpg'},
     {id:3,cat:'trasua',name:'Trà Sữa Caramel',price:25000,img:'https://res.cloudinary.com/anhduy/image/upload/v1769678299/ts-caramel_u6vaqg.jpg'},
@@ -331,6 +339,69 @@ const PRODUCTS = [
     {id:237,cat:'kotop',subcat:'traicay',name:'Trà Cóc Hạt Đác Ko Topping',price:19000,img:'https://res.cloudinary.com/anhduy/image/upload/v1769678276/tc-cochatdac_lat80f.jpg'}
 ];
 
+// === LOAD MENU TỪ DATABASE ===
+async function loadMenuData() {
+    try {
+        const res = await fetch('/api/menu_v2');
+        const data = await res.json();
+        
+        if (data.success && data.menu) {
+            // Categories
+            if (data.menu.categories && data.menu.categories.length > 0) {
+                CATEGORIES = data.menu.categories.map(c => ({
+                    id: c.id,
+                    name: c.icon + ' ' + c.name
+                }));
+            } else {
+                CATEGORIES = DEFAULT_CATEGORIES;
+            }
+            
+            // Products
+            if (data.menu.products && data.menu.products.length > 0) {
+                PRODUCTS = data.menu.products;
+            } else {
+                PRODUCTS = DEFAULT_PRODUCTS;
+            }
+            
+            // Toppings
+            if (data.menu.toppings && data.menu.toppings.length > 0) {
+                TOPPINGS_BASIC = data.menu.toppings
+                    .filter(t => t.type === 'basic' || !t.type)
+                    .map(t => t.name);
+                TOPPINGS_FRUIT = data.menu.toppings
+                    .filter(t => t.type === 'fruit')
+                    .map(t => t.name);
+                // Fallback nếu filter ra rỗng
+                if (TOPPINGS_BASIC.length === 0) TOPPINGS_BASIC = DEFAULT_TOPPINGS_BASIC;
+                if (TOPPINGS_FRUIT.length === 0) TOPPINGS_FRUIT = DEFAULT_TOPPINGS_FRUIT;
+            } else {
+                TOPPINGS_BASIC = DEFAULT_TOPPINGS_BASIC;
+                TOPPINGS_FRUIT = DEFAULT_TOPPINGS_FRUIT;
+            }
+            
+            // Quick Notes
+            if (data.menu.quick_notes && data.menu.quick_notes.length > 0) {
+                NOTES = data.menu.quick_notes.map(n => typeof n === 'string' ? n : n.text);
+            } else {
+                NOTES = DEFAULT_NOTES;
+            }
+            
+            console.log('✅ Menu loaded từ database:', PRODUCTS.length, 'sản phẩm,', NOTES.length, 'ghi chú');
+            return true;
+        }
+    } catch (e) {
+        console.log('⚠️ API v2 error, dùng fallback:', e.message);
+    }
+    
+    // Fallback - dùng default
+    NOTES = DEFAULT_NOTES;
+    TOPPINGS_BASIC = DEFAULT_TOPPINGS_BASIC;
+    TOPPINGS_FRUIT = DEFAULT_TOPPINGS_FRUIT;
+    CATEGORIES = DEFAULT_CATEGORIES;
+    PRODUCTS = DEFAULT_PRODUCTS;
+    return false;
+}
+
 let cart=[],currentItem=null,currentCat='trasua',excludeMode=false,searchQuery='',staffInfo=null;
 let currentToppings=[];
 let excludedList=[];
@@ -358,7 +429,10 @@ async function checkAuth(){
     const pin=localStorage.getItem('khi_pin');
     if(pin){try{const res=await fetch('/api/verify_pin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin})});const data=await res.json();if(data.success){staffInfo=data.staff;showApp();return;}}catch(e){}}
 }
-function initApp(){
+async function initApp(){
+    // Load menu từ database trước
+    await loadMenuData();
+    // Render categories và products
     document.getElementById('categories').innerHTML=CATEGORIES.map((c,i)=>`<button class="cat-btn${i===0?' active':''}" onclick="selectCat('${c.id}',this)">${c.name}</button>`).join('');
     renderProducts();
 }
