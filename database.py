@@ -66,6 +66,48 @@ class ShopLog(Base):
     created_at = Column(DateTime, default=datetime.now)
     status = Column(String, default="pending")
 
+class MenuCategory(Base):
+    """Danh mục sản phẩm"""
+    __tablename__ = "menu_categories"
+    id = Column(String, primary_key=True)  # VD: "trasua", "traicay"
+    name = Column(String, nullable=False)   # VD: "Trà Sữa"
+    icon = Column(String, default="🧋")
+    sort_order = Column(Integer, default=0)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.now)
+
+class MenuProduct(Base):
+    """Sản phẩm"""
+    __tablename__ = "menu_products"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    category_id = Column(String, nullable=False)  # FK to menu_categories.id
+    name = Column(String, nullable=False)
+    price = Column(Integer, default=0)
+    image = Column(String, default="")
+    sort_order = Column(Integer, default=0)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.now)
+
+class MenuTopping(Base):
+    """Topping"""
+    __tablename__ = "menu_toppings"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String, nullable=False)
+    price = Column(Integer, default=5000)
+    topping_type = Column(String, default="basic")  # "basic" hoặc "fruit"
+    sort_order = Column(Integer, default=0)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.now)
+
+class MenuQuickNote(Base):
+    """Ghi chú nhanh"""
+    __tablename__ = "menu_quick_notes"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    text = Column(String, nullable=False)
+    sort_order = Column(Integer, default=0)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.now)
+
 def init_db():
     Base.metadata.create_all(bind=engine)
 
@@ -113,7 +155,23 @@ def migrate_db():
                 conn.execute(text('ALTER TABLE employees ADD COLUMN tx_total_bet FLOAT DEFAULT 0'))
                 conn.commit()
                 print("✅ Đã thêm cột tx_total_bet")
-                
+                # === TẠO BẢNG MENU MỚI NẾU CHƯA CÓ ===
+            if 'menu_categories' not in inspector.get_table_names():
+                MenuCategory.__table__.create(engine)
+                print("✅ Đã tạo bảng menu_categories")
+        
+            if 'menu_products' not in inspector.get_table_names():
+                MenuProduct.__table__.create(engine)
+                print("✅ Đã tạo bảng menu_products")
+        
+            if 'menu_toppings' not in inspector.get_table_names():
+                MenuTopping.__table__.create(engine)
+                print("✅ Đã tạo bảng menu_toppings")
+        
+            if 'menu_quick_notes' not in inspector.get_table_names():
+                MenuQuickNote.__table__.create(engine)
+                print("✅ Đã tạo bảng menu_quick_notes")
+           
         print("✅ Database migration hoàn tất!")
         
     except Exception as e:
