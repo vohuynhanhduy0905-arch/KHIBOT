@@ -356,9 +356,24 @@ async function loadMenuData() {
                 CATEGORIES = DEFAULT_CATEGORIES;
             }
             
-            // Products
+            // Products - thêm subcat cho KO TOP
             if (data.menu.products && data.menu.products.length > 0) {
-                PRODUCTS = data.menu.products;
+                PRODUCTS = data.menu.products.map(p => {
+                    // Tự động thêm subcat cho sản phẩm KO TOP
+                    if (p.cat === 'kotop') {
+                        let subcat = 'trasua';
+                        const name = p.name.toLowerCase();
+                        if (name.includes('macchiato') || name.includes('trà đào') || name.includes('trà dâu') || name.includes('trà vải') || name.includes('hồng trà ko') || name.includes('ô long ko') || name.includes('trà sen ko')) {
+                            subcat = 'macchiato';
+                        } else if (name.includes('latte') || name.includes('trà sủi ko')) {
+                            subcat = 'dacbiet';
+                        } else if (name.includes('đác') || name.includes('ổi') || name.includes('nhiệt đới') || name.includes('táo') || name.includes('dưa') || name.includes('mãng') || name.includes('cóc')) {
+                            subcat = 'traicay';
+                        }
+                        return {...p, subcat};
+                    }
+                    return p;
+                });
             } else {
                 PRODUCTS = DEFAULT_PRODUCTS;
             }
