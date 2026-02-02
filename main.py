@@ -1,5 +1,5 @@
 # --- FILE: main.py ---
-# Bot Mì Cay ITADA - Phiên bản tối ưu với modules
+# Bot Trà Sữa Khỉ - Phiên bản tối ưu với modules
 # ĐÃ CẬP NHẬT: Giới hạn game Tài Xỉu
 
 import asyncio
@@ -35,76 +35,42 @@ from handlers import (
     daily_command, gift_command, shop_command,
     get_main_menu, check_private,
     dangky_command, dsnv_command, xoanv_command, broadcast_command,
-    game_ui_command, slot_command, kbb_command,
-    handle_slot_menu, handle_slot_play,
+    game_ui_command, kbb_command,
     handle_kbb_create, handle_kbb_join, handle_kbb_choose,
     handle_pk_create, handle_pk_join,
-    order_command, submit_order, order_button_callback, OrderData
+    order_command, submit_order, OrderData,
+    pending_pos_orders, get_pending_orders_list, remove_pending_order
 )
 
 init_db()
-# === ĐỒNG BỘ EMOJI TỪ DATABASE → GOOGLE SHEET KHI KHỞI ĐỘNG ===
-def sync_emoji_to_sheet():
-    """Đồng bộ emoji từ Database lên Google Sheet 1 lần khi khởi động"""
+# === ĐỒNG BỘ EMOJI TỪ SHEET KHI KHỞI ĐỘNG ===
+def sync_emoji_from_sheet():
+    """Đồng bộ emoji từ Google Sheet về Database 1 lần khi khởi động"""
     try:
-        print("🔄 Đang đồng bộ emoji từ Database → Google Sheet...")
+        print("🔄 Đang đồng bộ emoji từ Google Sheet...")
+        sheet_data = get_all_staff()
         
-        import gspread
-        import os
-        import json
-        from oauth2client.service_account import ServiceAccountCredentials
-        
-        # Kết nối Google Sheet
-        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-        service_account_info = os.environ.get("GOOGLE_SERVICE_ACCOUNT")
-        
-        if not service_account_info:
-            print("⚠️ Không tìm thấy GOOGLE_SERVICE_ACCOUNT, bỏ qua sync emoji")
-            return
-        
-        creds_dict = json.loads(service_account_info)
-        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
-        
-        client = gspread.authorize(creds)
-        spreadsheet = client.open("ITADA REVIEW MAP")
-        sheet = spreadsheet.worksheet("NHANVIEN")
-        
-        # Lấy data từ Sheet
-        records = sheet.get_all_records()
-        tg_to_row = {}
-        for i, r in enumerate(records):
-            tg_id = str(r.get("Telegram_ID", "")).strip()
-            if tg_id:
-                tg_to_row[tg_id] = i + 2  # +2 vì row 1 là header
-        
-        # Lấy data từ Database
         db = SessionLocal()
-        employees = db.query(Employee).all()
-        
         updated = 0
-        for emp in employees:
-            tg_id = str(emp.telegram_id).strip()
-            db_emoji = str(emp.emoji).strip() if emp.emoji else ""
+        
+        for staff in sheet_data:
+            tg_id = str(staff.get("Telegram_ID", "")).strip()
+            sheet_emoji = str(staff.get("Emoji", "")).strip()
             
-            if tg_id in tg_to_row and db_emoji:
-                row_num = tg_to_row[tg_id]
-                sheet_emoji = str(records[row_num - 2].get("Emoji", "")).strip()
-                
-                if db_emoji != sheet_emoji:
-                    sheet.update_cell(row_num, 5, db_emoji)  # Cột 5 = Emoji
-                    print(f"  ✅ {emp.name}: {sheet_emoji} → {db_emoji}")
+            if tg_id and sheet_emoji:
+                emp = db.query(Employee).filter(Employee.telegram_id == tg_id).first()
+                if emp and emp.emoji != sheet_emoji:
+                    emp.emoji = sheet_emoji
                     updated += 1
         
+        db.commit()
         db.close()
         print(f"✅ Đồng bộ emoji hoàn tất! Cập nhật {updated} nhân viên.")
     except Exception as e:
-        print(f"⚠️ Lỗi đồng bộ emoji (bỏ qua): {e}")
+        print(f"⚠️ Lỗi đồng bộ emoji: {e}")
 
-# Chạy đồng bộ khi khởi động - trong try-catch để không block app
-try:
-    sync_emoji_to_sheet()
-except Exception as e:
-    print(f"⚠️ Sync emoji failed, continuing... {e}")
+# Chạy đồng bộ khi khởi động
+sync_emoji_from_sheet()
 templates = Jinja2Templates(directory="templates")
 bot_app = Application.builder().token(TOKEN).build()
 
@@ -172,22 +138,10 @@ def get_tx_status(emp: Employee) -> str:
 
 async def handle_reaction(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Xử lý khi có người thả reaction vào tin nhắn"""
-    # === THÊM LOG DEBUG ===
-    print(f"🔔 REACTION RECEIVED!")
-    print(f"   Update: {update}")
-    # === KẾT THÚC LOG ===
-    
     try:
         reaction = update.message_reaction
         
-        # === THÊM LOG DEBUG ===
-        print(f"   reaction: {reaction}")
-        print(f"   MAIN_GROUP_ID: {MAIN_GROUP_ID}")
-        print(f"   DAILY_ANNOUNCEMENT_MSG: {DAILY_ANNOUNCEMENT_MSG}")
-        # === KẾT THÚC LOG ===
-        
         if not reaction:
-            print("   ❌ reaction is None")
             return
         
         message_id = reaction.message_id
@@ -274,7 +228,7 @@ async def handle_game_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
     if data == "back_home":
         msg = f"🎰 <b>TRUNG TÂM GIẢI TRÍ</b> 🎰\nChào <b>{user.full_name}</b>, đại gia muốn chơi gì?"
         keyboard = [
-            [InlineKeyboardButton("🎲 Tài Xỉu", callback_data="menu_tx"), InlineKeyboardButton("🎰 Slot", callback_data="slot_menu")],
+            [InlineKeyboardButton("🎲 Tài Xỉu", callback_data="menu_tx")],
             [InlineKeyboardButton("🥊 PK Xúc Xắc", callback_data="menu_pk"), InlineKeyboardButton("✂️ Kéo Búa Bao", callback_data="kbb_menu")],
             [InlineKeyboardButton("❌ Đóng", callback_data="close_menu")]
         ]
@@ -300,6 +254,7 @@ async def handle_game_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
         db.close()
         
         # Cập nhật tỷ lệ ăn mới
+        win_percent = int(TX_WIN_RATE * 100)
         txt = (
             f"🎲 <b>TÀI XỈU SIÊU TỐC</b>\n"
             f"━━━━━━━━━━━━━━━━\n"
@@ -321,10 +276,6 @@ async def handle_game_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
         txt = "🥊 <b>SÀN ĐẤU PK 1vs1 (XU)</b>\nChọn mức cược tại đây, Bot sẽ gửi lời mời vào Nhóm chung.\n👇 <b>Chọn mức thách đấu:</b>"
         kb = [[InlineKeyboardButton("⚡ 10k Xu", callback_data="pk_create_10000"), InlineKeyboardButton("⚡ 20k Xu", callback_data="pk_create_20000"), InlineKeyboardButton("⚡ 50k Xu", callback_data="pk_create_50000"), InlineKeyboardButton("⚡ 100k Xu", callback_data="pk_create_100000")], [InlineKeyboardButton("🔙 Quay lại", callback_data="back_home")]]
         await query.edit_message_text(txt, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
-        return
-    
-    if data == "slot_menu":
-        await handle_slot_menu(update, context)
         return
     
     if data == "kbb_menu":
@@ -588,7 +539,6 @@ bot_app.add_handler(CommandHandler("diemdanh", daily_command))
 bot_app.add_handler(CommandHandler("gift", gift_command))
 bot_app.add_handler(CommandHandler("qua", gift_command))
 bot_app.add_handler(CommandHandler("shop", shop_command))
-bot_app.add_handler(CommandHandler("slot", slot_command))
 bot_app.add_handler(CommandHandler("kbb", kbb_command))
 bot_app.add_handler(CommandHandler("order", order_command))
 bot_app.add_handler(CommandHandler("dangky", dangky_command))
@@ -711,8 +661,6 @@ async def test_announcement(update: Update, context: ContextTypes.DEFAULT_TYPE):
 bot_app.add_handler(CommandHandler("test_thongbao", test_announcement))
 
 bot_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_message))
-bot_app.add_handler(CallbackQueryHandler(order_button_callback, pattern="^(cancel_order_|pos_done)"))
-bot_app.add_handler(CallbackQueryHandler(handle_slot_play, pattern="^slot_play_"))
 bot_app.add_handler(CallbackQueryHandler(handle_pk_create, pattern="^pk_create_"))
 bot_app.add_handler(CallbackQueryHandler(handle_pk_join, pattern="^pk_join$"))
 bot_app.add_handler(CallbackQueryHandler(handle_kbb_create, pattern="^kbb_create_"))
@@ -739,18 +687,9 @@ async def lifespan(app: FastAPI):
         BotCommand("qr", "🚀 Lấy mã QR"),
         BotCommand("top", "🏆 BXH"),
     ])
-    asyncio.create_task(bot_app.updater.start_polling(
-    allowed_updates=[
-        "message", 
-        "edited_message",
-        "callback_query", 
-        "message_reaction",
-        "my_chat_member",
-        "chat_member"
-    ]
-))
+    asyncio.create_task(bot_app.updater.start_polling())
     asyncio.create_task(run_announcement_scheduler())
-    print("✅ Bot Mì Cay ITADA đã khởi động...")
+    print("✅ Bot đã khởi động với Menu chuẩn...")
     yield
     await bot_app.updater.stop()
     await bot_app.stop()
@@ -802,174 +741,154 @@ def get_review():
     review = db.query(Review).order_by(func.random()).first()
     db.close()
     content = review.content if review else random.choice([
-        "Mì cay nước dùng đậm đà, rất vừa miệng. Nhân viên luôn mỉm cười!",
-        "Nhân viên phục vụ nhanh nhẹn, mì cay hải sản tuyệt vời!",
-        "Không gian thoáng mát, sạch sẽ. Mì Cay ITADA quá đỉnh!",
-        "Đồ ăn ra nhanh, nóng hổi. Sẽ quay lại ủng hộ!",
-        "Giá cả hợp lý, chất lượng tuyệt vời. 5 sao!"
+        "Trà sữa thơm béo, topping siêu nhiều luôn. 10 điểm!",
+        "Quán decor xinh, nước ngon, nhân viên dễ thương.",
+        "Trà trái cây tươi mát, uống là nghiền. Sẽ quay lại!",
+        "Nước ngon, ship nhanh, nhân viên nhiệt tình. 5 sao!",
+        "Trà sữa đậm vị, trân châu dẻo. Sẽ ghé lại!"
     ])
     return {"content": content}
 
 
-@app.get("/api/sync_emoji_from_sheet")
-def sync_emoji_from_sheet_api():
-    """API để sync emoji từ Google Sheet vào Database (chạy 1 lần)"""
-    try:
-        import gspread
-        import os
-        import json
-        from oauth2client.service_account import ServiceAccountCredentials
-        
-        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-        service_account_info = os.environ.get("GOOGLE_SERVICE_ACCOUNT")
-        
-        if not service_account_info:
-            return {"success": False, "message": "Không tìm thấy GOOGLE_SERVICE_ACCOUNT"}
-        
-        creds_dict = json.loads(service_account_info)
-        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
-        
-        client = gspread.authorize(creds)
-        spreadsheet = client.open("ITADA REVIEW MAP")
-        sheet = spreadsheet.worksheet("NHANVIEN")
-        
-        records = sheet.get_all_records()
-        
-        db = SessionLocal()
-        updated = 0
-        created = 0
-        results = []
-        
-        for staff in records:
-            tg_id = str(staff.get("Telegram_ID", "")).strip()
-            sheet_emoji = str(staff.get("Emoji", "")).strip()
-            name = str(staff.get("Tên", "")).strip()
-            
-            if not tg_id:
-                continue
-            
-            emp = db.query(Employee).filter(Employee.telegram_id == tg_id).first()
-            
-            if emp:
-                if sheet_emoji and emp.emoji != sheet_emoji:
-                    old_emoji = emp.emoji
-                    emp.emoji = sheet_emoji
-                    updated += 1
-                    results.append(f"✅ {name}: {old_emoji} → {sheet_emoji}")
-            else:
-                # Tạo mới employee nếu chưa có trong DB
-                if sheet_emoji:
-                    new_emp = Employee(telegram_id=tg_id, name=name, emoji=sheet_emoji)
-                    db.add(new_emp)
-                    created += 1
-                    results.append(f"🆕 {name}: {sheet_emoji}")
-        
-        db.commit()
-        db.close()
-        
-        return {
-            "success": True, 
-            "updated": updated,
-            "created": created,
-            "details": results
+# ==========================================
+# API CHO KHI-POS (ĐỒNG BỘ MENU)
+# ==========================================
+
+# pending_pos_orders được import từ handlers.order_handlers
+
+@app.get("/api/menu")
+def get_menu():
+    """API để KHI-POS lấy menu từ KHIBOT"""
+    # Menu data - giống với webapp_standalone.html
+    categories = [
+        {"id": "trasua", "name": "Trà Sữa", "icon": "🧋"},
+        {"id": "traicay", "name": "Trà Trái Cây", "icon": "🍹"},
+        {"id": "macchiato", "name": "Macchiato", "icon": "🥛"},
+        {"id": "dacbiet", "name": "Đặc Biệt", "icon": "⭐"},
+        {"id": "topping", "name": "Topping Thêm", "icon": "🍡"},
+        {"id": "kotop", "name": "KO TOP", "icon": "🚫"}
+    ]
+    
+    products = [
+        # Trà Sữa
+        {"id": 1, "cat": "trasua", "name": "Trà Sữa Truyền Thống", "price": 25000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678320/ts-truyenthong_umocuv.jpg"},
+        {"id": 2, "cat": "trasua", "name": "Trà Sữa Matcha", "price": 25000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678307/ts-matcha_gobwvh.jpg"},
+        {"id": 3, "cat": "trasua", "name": "Trà Sữa Caramel", "price": 25000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678299/ts-caramel_u6vaqg.jpg"},
+        {"id": 4, "cat": "trasua", "name": "Trà Sữa Ô Long", "price": 25000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678320/ts-olong_kn2h1c.jpg"},
+        {"id": 5, "cat": "trasua", "name": "Trà Sữa Chocolate", "price": 25000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678306/ts-chocolate_kuosxw.jpg"},
+        {"id": 6, "cat": "trasua", "name": "Trà Sữa Đào", "price": 25000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678306/ts-dao_jovzy8.jpg"},
+        # Trà Trái Cây
+        {"id": 10, "cat": "traicay", "name": "Trà Đác Dâu Tằm", "price": 27000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678281/tc-dautam_lifxht.jpg"},
+        {"id": 11, "cat": "traicay", "name": "Trà Đác Thơm", "price": 27000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678280/tc-dacthom_s91uyt.jpg"},
+        {"id": 12, "cat": "traicay", "name": "Trà Ổi Hồng", "price": 27000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678290/tc-oihong_utnw5w.jpg"},
+        {"id": 13, "cat": "traicay", "name": "Trà Nhiệt Đới", "price": 27000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678289/tc-nhietdoi_qzmyyi.jpg"},
+        {"id": 14, "cat": "traicay", "name": "Trà Táo Xanh", "price": 27000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678291/tc-taoxanh_ljrgr1.jpg"},
+        {"id": 15, "cat": "traicay", "name": "Trà Dưa Lưới", "price": 27000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678281/tc-dualuoi_frskc0.jpg"},
+        {"id": 16, "cat": "traicay", "name": "Trà Mãng Cầu", "price": 27000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678282/tc-mangcau_bff6ir.jpg"},
+        {"id": 17, "cat": "traicay", "name": "Trà Cóc Hạt Đác", "price": 27000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678276/tc-cochatdac_lat80f.jpg"},
+        # Macchiato
+        {"id": 20, "cat": "macchiato", "name": "Trà Đào Macchiato", "price": 25000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678264/mc-dao_arsc8z.jpg"},
+        {"id": 21, "cat": "macchiato", "name": "Trà Dâu Macchiato", "price": 25000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678266/mc-dau_ythwfg.jpg"},
+        {"id": 22, "cat": "macchiato", "name": "Trà Vải Macchiato", "price": 25000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678273/mc-vai_y05t2z.jpg"},
+        {"id": 23, "cat": "macchiato", "name": "Hồng Trà Macchiato", "price": 25000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678268/mc-hongtra_dwjbd2.jpg"},
+        {"id": 24, "cat": "macchiato", "name": "Ô Long Macchiato", "price": 25000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678270/mc-olong_sqykw6.jpg"},
+        {"id": 25, "cat": "macchiato", "name": "Trà Sen Macchiato", "price": 25000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678271/mc-sen_kco8x7.jpg"},
+        # Đặc Biệt
+        {"id": 30, "cat": "dacbiet", "name": "Trà Sủi", "price": 25000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769679055/Tr%C3%A0_%C4%90%C3%A1c_D%C3%A2u_T%E1%BA%B1m_vxk6nj.jpg"},
+        {"id": 31, "cat": "dacbiet", "name": "Sữa Tươi Trân Châu Đ.Đ", "price": 27000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678262/db-suatuoi_ymftil.jpg"},
+        {"id": 32, "cat": "dacbiet", "name": "Hồng Trà Latte", "price": 27000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678258/db-hongtralatte_cko07b.jpg"},
+        {"id": 33, "cat": "dacbiet", "name": "Matcha Latte", "price": 27000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678261/db-matchalatte_em8slk.jpg"},
+        # Topping
+        {"id": 100, "cat": "topping", "name": "Thêm Trân Châu", "price": 5000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678298/tp-tranchau_ff3k5o.jpg"},
+        {"id": 101, "cat": "topping", "name": "Thêm Củ Năng", "price": 5000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678248/8_tikfnv.jpg"},
+        {"id": 102, "cat": "topping", "name": "Thêm Phô Mai", "price": 5000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678247/7_pavlgu.jpg"},
+        {"id": 103, "cat": "topping", "name": "Thêm Rau Câu", "price": 5000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769677875/3_davt5n.jpg"},
+        {"id": 104, "cat": "topping", "name": "Thêm Khúc Bạch", "price": 5000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769677876/4_fx9ojc.jpg"},
+        {"id": 105, "cat": "topping", "name": "Thêm Sương Sáo", "price": 5000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769677875/1_uuksk1.jpg"},
+        {"id": 106, "cat": "topping", "name": "Thêm Thạch Đào", "price": 5000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678030/6_ux0ytb.jpg"},
+        {"id": 107, "cat": "topping", "name": "Thêm Flan Trứng", "price": 5000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769677875/2_lqjdoz.jpg"},
+        {"id": 108, "cat": "topping", "name": "Thêm Ngọc Trai", "price": 5000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769677889/5_wy4gyz.jpg"},
+        {"id": 109, "cat": "topping", "name": "Thêm Khoai Dẻo", "price": 5000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678249/9_klh8kn.jpg"},
+        {"id": 110, "cat": "topping", "name": "Thêm Đác Thơm", "price": 10000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678252/13_fsntwx.jpg"},
+        {"id": 111, "cat": "topping", "name": "Thêm Đác Dâu Tằm", "price": 10000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678250/12_yjvbsp.jpg"},
+        {"id": 112, "cat": "topping", "name": "Thêm Trái Cây Nhiệt Đới", "price": 10000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678251/10_oqpadz.jpg"},
+        {"id": 113, "cat": "topping", "name": "Thêm Táo Xanh", "price": 10000, "img": "/static/logo.png"},
+        {"id": 114, "cat": "topping", "name": "Thêm Dưa Lưới", "price": 10000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678257/16_zirfjx.jpg"},
+        {"id": 115, "cat": "topping", "name": "Thêm Ổi Hồng", "price": 10000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678256/15_mwtccy.jpg"},
+        {"id": 116, "cat": "topping", "name": "Thêm Mãng Cầu", "price": 10000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678255/14_btqjzs.jpg"},
+        # KO TOPPING - Trà Sữa
+        {"id": 200, "cat": "kotop", "subcat": "trasua", "name": "TS Truyền Thống Ko Topping", "price": 19000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678320/ts-truyenthong_umocuv.jpg"},
+        {"id": 201, "cat": "kotop", "subcat": "trasua", "name": "TS Matcha Ko Topping", "price": 19000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678307/ts-matcha_gobwvh.jpg"},
+        {"id": 202, "cat": "kotop", "subcat": "trasua", "name": "TS Caramel Ko Topping", "price": 19000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678299/ts-caramel_u6vaqg.jpg"},
+        {"id": 203, "cat": "kotop", "subcat": "trasua", "name": "TS Ô Long Ko Topping", "price": 19000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678320/ts-olong_kn2h1c.jpg"},
+        {"id": 204, "cat": "kotop", "subcat": "trasua", "name": "TS Chocolate Ko Topping", "price": 19000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678306/ts-chocolate_kuosxw.jpg"},
+        {"id": 205, "cat": "kotop", "subcat": "trasua", "name": "TS Đào Ko Topping", "price": 19000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678306/ts-dao_jovzy8.jpg"},
+        # KO TOPPING - Macchiato
+        {"id": 210, "cat": "kotop", "subcat": "macchiato", "name": "Trà Đào Ko Topping", "price": 19000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678264/mc-dao_arsc8z.jpg"},
+        {"id": 211, "cat": "kotop", "subcat": "macchiato", "name": "Trà Dâu Ko Topping", "price": 19000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678266/mc-dau_ythwfg.jpg"},
+        {"id": 212, "cat": "kotop", "subcat": "macchiato", "name": "Trà Vải Ko Topping", "price": 19000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678273/mc-vai_y05t2z.jpg"},
+        {"id": 213, "cat": "kotop", "subcat": "macchiato", "name": "Hồng Trà Ko Topping", "price": 19000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678268/mc-hongtra_dwjbd2.jpg"},
+        {"id": 214, "cat": "kotop", "subcat": "macchiato", "name": "Ô Long Ko Topping", "price": 19000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678270/mc-olong_sqykw6.jpg"},
+        {"id": 215, "cat": "kotop", "subcat": "macchiato", "name": "Trà Sen Ko Topping", "price": 19000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678271/mc-sen_kco8x7.jpg"},
+        # KO TOPPING - Đặc Biệt
+        {"id": 220, "cat": "kotop", "subcat": "dacbiet", "name": "Trà Sủi Ko Topping", "price": 19000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769679055/Tr%C3%A0_%C4%90%C3%A1c_D%C3%A2u_T%E1%BA%B1m_vxk6nj.jpg"},
+        {"id": 221, "cat": "kotop", "subcat": "dacbiet", "name": "Hồng Trà Latte Ko Topping", "price": 22000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678258/db-hongtralatte_cko07b.jpg"},
+        {"id": 222, "cat": "kotop", "subcat": "dacbiet", "name": "Matcha Latte Ko Topping", "price": 22000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678261/db-matchalatte_em8slk.jpg"},
+        # KO TOPPING - Trái Cây
+        {"id": 230, "cat": "kotop", "subcat": "traicay", "name": "Trà Đác Dâu Tằm Ko Topping", "price": 19000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678281/tc-dautam_lifxht.jpg"},
+        {"id": 231, "cat": "kotop", "subcat": "traicay", "name": "Trà Đác Thơm Ko Topping", "price": 19000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678280/tc-dacthom_s91uyt.jpg"},
+        {"id": 232, "cat": "kotop", "subcat": "traicay", "name": "Trà Ổi Hồng Ko Topping", "price": 19000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678290/tc-oihong_utnw5w.jpg"},
+        {"id": 233, "cat": "kotop", "subcat": "traicay", "name": "Trà Nhiệt Đới Ko Topping", "price": 19000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678289/tc-nhietdoi_qzmyyi.jpg"},
+        {"id": 234, "cat": "kotop", "subcat": "traicay", "name": "Trà Táo Xanh Ko Topping", "price": 19000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678291/tc-taoxanh_ljrgr1.jpg"},
+        {"id": 235, "cat": "kotop", "subcat": "traicay", "name": "Trà Dưa Lưới Ko Topping", "price": 19000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678281/tc-dualuoi_frskc0.jpg"},
+        {"id": 236, "cat": "kotop", "subcat": "traicay", "name": "Trà Mãng Cầu Ko Topping", "price": 19000, "img": "/static/logo.png"},
+        {"id": 237, "cat": "kotop", "subcat": "traicay", "name": "Trà Cóc Hạt Đác Ko Topping", "price": 19000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678276/tc-cochatdac_lat80f.jpg"}
+    ]
+    
+    toppings = [
+        {"name": "Trân Châu", "price": 5000},
+        {"name": "Củ Năng", "price": 5000},
+        {"name": "Phô Mai", "price": 5000},
+        {"name": "Rau Câu", "price": 5000},
+        {"name": "Khúc Bạch", "price": 5000},
+        {"name": "Sương Sáo", "price": 5000},
+        {"name": "Thạch Đào", "price": 5000},
+        {"name": "Flan Trứng", "price": 5000},
+        {"name": "Ngọc Trai", "price": 5000},
+        {"name": "Khoai Dẻo", "price": 5000},
+        {"name": "Đác Thơm", "price": 10000},
+        {"name": "Đác Dâu Tằm", "price": 10000},
+        {"name": "Trái Cây Nhiệt Đới", "price": 10000},
+        {"name": "Táo Xanh", "price": 10000},
+        {"name": "Dưa Lưới", "price": 10000},
+        {"name": "Ổi Hồng", "price": 10000},
+        {"name": "Mãng Cầu", "price": 10000}
+    ]
+    
+    return {
+        "success": True,
+        "menu": {
+            "categories": categories,
+            "products": products,
+            "toppings": toppings
         }
+    }
+
+
+@app.get("/api/pending_orders")
+def api_pending_orders():
+    """API để KHI-POS lấy danh sách order chờ xử lý"""
+    orders = get_pending_orders_list()
+    return {"orders": orders, "count": len(orders)}
+
+
+@app.post("/api/order_accepted")
+async def api_order_accepted(request: Request):
+    """API khi KHI-POS đã nhận order"""
+    try:
+        data = await request.json()
+        order_id = data.get("order_id")
+        remove_pending_order(order_id)
+        return {"success": True, "message": f"Order {order_id} đã được xử lý"}
     except Exception as e:
         return {"success": False, "message": str(e)}
-
-
-@app.get("/api/debug_emoji")
-def debug_emoji():
-    """API debug để xem emoji trong DB và Sheet"""
-    try:
-        import gspread
-        import os
-        import json
-        from oauth2client.service_account import ServiceAccountCredentials
-        
-        # Lấy data từ DB
-        db = SessionLocal()
-        db_employees = db.query(Employee).all()
-        db_data = [{"tg_id": e.telegram_id, "name": e.name, "emoji": e.emoji} for e in db_employees]
-        db.close()
-        
-        # Lấy data từ Sheet
-        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-        service_account_info = os.environ.get("GOOGLE_SERVICE_ACCOUNT")
-        
-        sheet_data = []
-        if service_account_info:
-            creds_dict = json.loads(service_account_info)
-            creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
-            client = gspread.authorize(creds)
-            spreadsheet = client.open("ITADA REVIEW MAP")
-            sheet = spreadsheet.worksheet("NHANVIEN")
-            records = sheet.get_all_records()
-            sheet_data = [{"tg_id": str(r.get("Telegram_ID", "")), "name": r.get("Tên", ""), "emoji": r.get("Emoji", "")} for r in records]
-        
-        return {
-            "database": db_data,
-            "sheet": sheet_data
-        }
-    except Exception as e:
-        return {"error": str(e)}
-
-
-@app.get("/api/list_review_logs")
-def list_review_logs():
-    """API xem danh sách review đã ghi nhận"""
-    try:
-        from database import ReviewLog
-        db = SessionLocal()
-        logs = db.query(ReviewLog).order_by(ReviewLog.id.desc()).limit(20).all()
-        result = []
-        for log in logs:
-            result.append({
-                "id": log.id,
-                "google_review_id": log.google_review_id,
-                "reviewer_name": log.reviewer_name,
-                "stars": log.stars,
-                "staff_id": log.staff_id,
-                "status": log.status,
-                "content": log.content[:50] + "..." if log.content and len(log.content) > 50 else log.content
-            })
-        db.close()
-        return {"reviews": result}
-    except Exception as e:
-        return {"error": str(e)}
-
-
-@app.get("/api/delete_review_log")
-def delete_review_log(reviewer_name: str = None, review_id: int = None):
-    """API xóa review log để cho phép quét lại
-    
-    Sử dụng:
-    - /api/delete_review_log?reviewer_name=Tú Vlog
-    - /api/delete_review_log?review_id=123
-    """
-    try:
-        from database import ReviewLog
-        db = SessionLocal()
-        
-        deleted = []
-        
-        if review_id:
-            log = db.query(ReviewLog).filter(ReviewLog.id == review_id).first()
-            if log:
-                deleted.append({"id": log.id, "name": log.reviewer_name})
-                db.delete(log)
-        
-        if reviewer_name:
-            logs = db.query(ReviewLog).filter(ReviewLog.reviewer_name.contains(reviewer_name)).all()
-            for log in logs:
-                deleted.append({"id": log.id, "name": log.reviewer_name})
-                db.delete(log)
-        
-        db.commit()
-        db.close()
-        
-        if deleted:
-            return {"success": True, "deleted": deleted, "message": f"Đã xóa {len(deleted)} review. Tool sẽ quét lại trong lần chạy tiếp theo."}
-        else:
-            return {"success": False, "message": "Không tìm thấy review nào để xóa"}
-    except Exception as e:
-        return {"success": False, "error": str(e)}
