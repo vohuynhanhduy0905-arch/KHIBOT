@@ -92,6 +92,9 @@ PRODUCT_SHORT = {
     "Thêm Dưa Lưới": "+dưa lưới",
     "Thêm Ổi Hồng": "+ổi hồng",
     "Thêm Mãng Cầu": "+mãng cầu",
+    "Thêm Macchiato": "+macchiato",
+    "Thêm Full Topping": "+full top",
+    "Thêm Đác": "+đác",
 }
 
 TOPPING_SHORT = {
