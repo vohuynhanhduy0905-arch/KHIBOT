@@ -944,6 +944,7 @@ def get_menu_v2():
                 ]
             }
         }
+        
     except Exception as e:
         return {"success": False, "error": str(e)}
     finally:
