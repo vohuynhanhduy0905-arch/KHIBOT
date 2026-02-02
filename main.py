@@ -11,6 +11,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 
 from telegram import (
     Update, BotCommand, InlineKeyboardButton, InlineKeyboardMarkup, 
@@ -696,6 +697,16 @@ async def lifespan(app: FastAPI):
     await bot_app.shutdown()
 
 app = FastAPI(lifespan=lifespan)
+
+# === CORS MIDDLEWARE - Cho phép POS truy cập API ===
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Cho phép tất cả origins (bao gồm file://)
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.head("/ping")
@@ -1024,9 +1035,6 @@ def seed_menu_data():
             {"category_id": "topping", "name": "Thêm Dưa Lưới", "price": 10000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678257/16_zirfjx.jpg", "sort_order": 15},
             {"category_id": "topping", "name": "Thêm Ổi Hồng", "price": 10000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678256/15_mwtccy.jpg", "sort_order": 16},
             {"category_id": "topping", "name": "Thêm Mãng Cầu", "price": 10000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678255/14_btqjzs.jpg", "sort_order": 17},
-            {"category_id": "topping", "name": "Thêm Macchiato", "price": 5000, "image": "/static/logo.png", "sort_order": 18},
-            {"category_id": "topping", "name": "Thêm Full Topping", "price": 10000, "image": "/static/logo.png", "sort_order": 19},
-            {"category_id": "topping", "name": "Thêm Đác", "price": 10000, "image": "/static/logo.png", "sort_order": 20},
             # KO TOPPING - Trà Sữa
             {"category_id": "kotop", "name": "TS Truyền Thống Ko Topping", "price": 19000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678320/ts-truyenthong_umocuv.jpg", "sort_order": 1},
             {"category_id": "kotop", "name": "TS Matcha Ko Topping", "price": 19000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678307/ts-matcha_gobwvh.jpg", "sort_order": 2},
