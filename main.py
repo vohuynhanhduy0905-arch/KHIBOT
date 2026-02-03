@@ -969,7 +969,7 @@ def get_menu_v2():
 # API SEED - IMPORT DATA TỪ HARDCODE VÀO DB
 # ============================
 
-@app.post("/api/admin/add-new-toppings")
+@app.api_route("/api/admin/add-new-toppings", methods=["GET", "POST"])
 def add_new_toppings():
     """Thêm 3 topping mới vào database (không reset)"""
     db = SessionLocal()
