@@ -827,6 +827,9 @@ def get_menu():
         {"id": 114, "cat": "topping", "name": "Thêm Dưa Lưới", "price": 10000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678257/16_zirfjx.jpg"},
         {"id": 115, "cat": "topping", "name": "Thêm Ổi Hồng", "price": 10000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678256/15_mwtccy.jpg"},
         {"id": 116, "cat": "topping", "name": "Thêm Mãng Cầu", "price": 10000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678255/14_btqjzs.jpg"},
+        {"id": 117, "cat": "topping", "name": "Thêm Macchiato", "price": 5000, "img": "/static/logo.png"},
+        {"id": 118, "cat": "topping", "name": "Thêm Full Topping", "price": 10000, "img": "/static/logo.png"},
+        {"id": 119, "cat": "topping", "name": "Thêm Đác", "price": 10000, "img": "/static/logo.png"},
         # KO TOPPING - Trà Sữa
         {"id": 200, "cat": "kotop", "subcat": "trasua", "name": "TS Truyền Thống Ko Topping", "price": 19000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678320/ts-truyenthong_umocuv.jpg"},
         {"id": 201, "cat": "kotop", "subcat": "trasua", "name": "TS Matcha Ko Topping", "price": 19000, "img": "https://res.cloudinary.com/anhduy/image/upload/v1769678307/ts-matcha_gobwvh.jpg"},
@@ -966,6 +969,33 @@ def get_menu_v2():
 # API SEED - IMPORT DATA TỪ HARDCODE VÀO DB
 # ============================
 
+@app.post("/api/admin/add-new-toppings")
+def add_new_toppings():
+    """Thêm 3 topping mới vào database (không reset)"""
+    db = SessionLocal()
+    try:
+        new_toppings = [
+            {"category_id": "topping", "name": "Thêm Macchiato", "price": 5000, "image": "/static/logo.png", "sort_order": 18},
+            {"category_id": "topping", "name": "Thêm Full Topping", "price": 10000, "image": "/static/logo.png", "sort_order": 19},
+            {"category_id": "topping", "name": "Thêm Đác", "price": 10000, "image": "/static/logo.png", "sort_order": 20},
+        ]
+        
+        added = 0
+        for t in new_toppings:
+            # Kiểm tra đã có chưa
+            exists = db.query(MenuProduct).filter(MenuProduct.name == t["name"]).first()
+            if not exists:
+                db.add(MenuProduct(**t))
+                added += 1
+        
+        db.commit()
+        return {"success": True, "message": f"Đã thêm {added} topping mới", "added": added}
+    except Exception as e:
+        db.rollback()
+        return {"success": False, "error": str(e)}
+    finally:
+        db.close()
+
 @app.post("/api/admin/seed")
 def seed_menu_data():
     """Import data từ hardcode vào database (chạy 1 lần)"""
@@ -1035,6 +1065,9 @@ def seed_menu_data():
             {"category_id": "topping", "name": "Thêm Dưa Lưới", "price": 10000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678257/16_zirfjx.jpg", "sort_order": 15},
             {"category_id": "topping", "name": "Thêm Ổi Hồng", "price": 10000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678256/15_mwtccy.jpg", "sort_order": 16},
             {"category_id": "topping", "name": "Thêm Mãng Cầu", "price": 10000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678255/14_btqjzs.jpg", "sort_order": 17},
+            {"category_id": "topping", "name": "Thêm Macchiato", "price": 5000, "image": "/static/logo.png", "sort_order": 18},
+            {"category_id": "topping", "name": "Thêm Full Topping", "price": 10000, "image": "/static/logo.png", "sort_order": 19},
+            {"category_id": "topping", "name": "Thêm Đác", "price": 10000, "image": "/static/logo.png", "sort_order": 20},
             # KO TOPPING - Trà Sữa
             {"category_id": "kotop", "name": "TS Truyền Thống Ko Topping", "price": 19000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678320/ts-truyenthong_umocuv.jpg", "sort_order": 1},
             {"category_id": "kotop", "name": "TS Matcha Ko Topping", "price": 19000, "image": "https://res.cloudinary.com/anhduy/image/upload/v1769678307/ts-matcha_gobwvh.jpg", "sort_order": 2},
