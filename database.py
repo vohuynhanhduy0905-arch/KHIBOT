@@ -108,6 +108,18 @@ class MenuQuickNote(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.now)
 
+class RejectedOrder(Base):
+    """Đơn hàng bị từ chối - để thống kê"""
+    __tablename__ = "rejected_orders"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    order_id = Column(String, nullable=False)
+    customer = Column(String, default="")
+    total = Column(Integer, default=0)
+    items = Column(String, default="[]")  # JSON string
+    reason = Column(String, default="Không rõ lý do")
+    staff_name = Column(String, default="")
+    created_at = Column(DateTime, default=datetime.now)
+
 def init_db():
     Base.metadata.create_all(bind=engine)
 
@@ -171,6 +183,10 @@ def migrate_db():
             if 'menu_quick_notes' not in inspector.get_table_names():
                 MenuQuickNote.__table__.create(engine)
                 print("✅ Đã tạo bảng menu_quick_notes")
+            
+            if 'rejected_orders' not in inspector.get_table_names():
+                RejectedOrder.__table__.create(engine)
+                print("✅ Đã tạo bảng rejected_orders")
            
         print("✅ Database migration hoàn tất!")
         

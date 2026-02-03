@@ -28,7 +28,7 @@ from config import (
     MORNING_MESSAGES, EVENING_MESSAGES,
     TX_WIN_RATE, TX_MAX_PLAYS_PER_DAY, TX_MAX_BET_PER_DAY  # MỚI
 )
-from database import init_db, SessionLocal, Employee, Review, ShopLog, MenuCategory, MenuProduct, MenuTopping, MenuQuickNote
+from database import init_db, SessionLocal, Employee, Review, ShopLog, MenuCategory, MenuProduct, MenuTopping, MenuQuickNote, RejectedOrder
 from staff_sheet import get_staff_by_pin, get_all_staff
 
 from handlers import (
@@ -906,6 +906,121 @@ async def api_order_accepted(request: Request):
         return {"success": True, "message": f"Order {order_id} đã được xử lý"}
     except Exception as e:
         return {"success": False, "message": str(e)}
+
+@app.post("/api/order_rejected")
+async def api_order_rejected(request: Request):
+    """API khi KHI-POS từ chối order"""
+    db = SessionLocal()
+    try:
+        data = await request.json()
+        order_id = data.get("order_id")
+        reason = data.get("reason", "Không rõ lý do")
+        staff_name = data.get("staff_name", "Unknown")
+        customer = data.get("customer", "")
+        total = data.get("total", 0)
+        items_json = data.get("items", "[]")
+        
+        # Lưu vào database để thống kê
+        rejected = RejectedOrder(
+            order_id=order_id,
+            customer=customer,
+            total=total,
+            items=str(items_json),
+            reason=reason,
+            staff_name=staff_name
+        )
+        db.add(rejected)
+        db.commit()
+        
+        # Xóa khỏi pending
+        remove_pending_order(order_id)
+        
+        return {"success": True, "message": f"Đã từ chối đơn {order_id}"}
+    except Exception as e:
+        db.rollback()
+        return {"success": False, "error": str(e)}
+    finally:
+        db.close()
+
+@app.get("/api/rejected_orders/stats")
+def get_rejected_stats(days: int = 7):
+    """Thống kê đơn bị từ chối theo ngày/nhân viên"""
+    db = SessionLocal()
+    try:
+        from datetime import datetime, timedelta
+        from sqlalchemy import func
+        
+        since = datetime.now() - timedelta(days=days)
+        
+        # Tổng số đơn từ chối
+        total_rejected = db.query(RejectedOrder).filter(
+            RejectedOrder.created_at >= since
+        ).count()
+        
+        # Tổng giá trị đơn từ chối
+        total_value = db.query(func.sum(RejectedOrder.total)).filter(
+            RejectedOrder.created_at >= since
+        ).scalar() or 0
+        
+        # Thống kê theo ngày
+        by_date = db.query(
+            func.date(RejectedOrder.created_at).label('date'),
+            func.count(RejectedOrder.id).label('count'),
+            func.sum(RejectedOrder.total).label('total')
+        ).filter(
+            RejectedOrder.created_at >= since
+        ).group_by(func.date(RejectedOrder.created_at)).all()
+        
+        # Thống kê theo nhân viên
+        by_staff = db.query(
+            RejectedOrder.staff_name,
+            func.count(RejectedOrder.id).label('count'),
+            func.sum(RejectedOrder.total).label('total')
+        ).filter(
+            RejectedOrder.created_at >= since
+        ).group_by(RejectedOrder.staff_name).all()
+        
+        # Thống kê theo lý do
+        by_reason = db.query(
+            RejectedOrder.reason,
+            func.count(RejectedOrder.id).label('count')
+        ).filter(
+            RejectedOrder.created_at >= since
+        ).group_by(RejectedOrder.reason).all()
+        
+        # Danh sách đơn gần đây
+        recent = db.query(RejectedOrder).filter(
+            RejectedOrder.created_at >= since
+        ).order_by(RejectedOrder.created_at.desc()).limit(20).all()
+        
+        return {
+            "success": True,
+            "days": days,
+            "summary": {
+                "total_rejected": total_rejected,
+                "total_value": total_value
+            },
+            "by_date": [{"date": str(r.date), "count": r.count, "total": r.total or 0} for r in by_date],
+            "by_staff": [{"staff": r.staff_name, "count": r.count, "total": r.total or 0} for r in by_staff],
+            "by_reason": [{"reason": r.reason, "count": r.count} for r in by_reason],
+            "recent": [
+                {
+                    "id": r.id,
+                    "order_id": r.order_id,
+                    "customer": r.customer,
+                    "total": r.total,
+                    "reason": r.reason,
+                    "staff": r.staff_name,
+                    "created_at": r.created_at.isoformat() if r.created_at else None
+                }
+                for r in recent
+            ]
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+    finally:
+        db.close()
+
 @app.get("/api/menu_v2")
 def get_menu_v2():
     """API mới - Lấy menu từ database"""
